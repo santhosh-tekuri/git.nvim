@@ -60,7 +60,9 @@ local function setup_preview()
     return pbuf, pwin
 end
 
-local function gitstatus(cb)
+local gitdiff
+
+local function gitstatus(lnum)
     local root = gitroot()
     if not root then
         return
@@ -77,6 +79,7 @@ local function gitstatus(cb)
     local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
+    vim.api.nvim_win_set_cursor(pwin, { lnum or 1, 0 })
     for i, line in ipairs(lines) do
         vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
             end_row = i - 1,
@@ -95,16 +98,19 @@ local function gitstatus(cb)
         if closed then
             return
         end
-        local file = nil
+        local selection = nil
         if accept then
             local line = vim.api.nvim_win_get_cursor(pwin)[1]
-            file = lines[line]:sub(4)
+            selection = {
+                line = line,
+                file = lines[line]:sub(4)
+            }
         end
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
         vim.api.nvim_buf_delete(pbuf, {})
-        if file then
-            cb(file)
+        if selection then
+            gitdiff(selection)
         end
     end
     local function move(i)
@@ -137,8 +143,8 @@ local function gitstatus(cb)
     keymap("<up>", move, { -1 })
 end
 
-local function gitdiff(file)
-    local lines = gitlist { "git", "--no-pager", "diff", file }
+function gitdiff(selection)
+    local lines = gitlist { "git", "--no-pager", "diff", selection.file }
     if not lines then
         warn("git diff failed")
         return
@@ -159,6 +165,7 @@ local function gitdiff(file)
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
         vim.api.nvim_buf_delete(pbuf, {})
+        gitstatus(selection.line)
     end
     vim.api.nvim_create_autocmd('WinLeave', {
         buffer = qbuf,
@@ -216,7 +223,10 @@ local function gitdiff(file)
     end
     local function toggle_mode()
         line_mode = not line_mode
-        vfrom, vto = vfrom - 1, vfrom - 1
+        while is_change(vfrom) do
+            vfrom = vfrom - 1
+        end
+        vto = vfrom - 1
         move(1)
     end
     move(1)
@@ -229,6 +239,4 @@ local function gitdiff(file)
     keymap("v", toggle_mode, {})
 end
 
-gitstatus(function(item)
-    gitdiff(item)
-end)
+gitstatus()
