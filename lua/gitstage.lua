@@ -129,6 +129,7 @@ local function gitstatus(cb)
     end
     keymap("<esc>", close, { nil })
     keymap("q", close, { nil })
+    keymap("o", close, { true })
     keymap("<cr>", close, { true })
     keymap("j", move, { 1 })
     keymap("<down>", move, { 1 })
@@ -171,7 +172,6 @@ local function gitdiff(file)
         end, { buffer = qbuf, nowait = true })
     end
     local line_mode = false
-
     local function is_change(line)
         local node = vim.treesitter.get_node({ bufnr = pbuf, pos = { line - 1, 0 } })
         local type = node and node:type() or ""
@@ -184,7 +184,6 @@ local function gitdiff(file)
         for line = cur + step, last, step do
             if is_change(line) then
                 if line_mode then
-                    vim.api.nvim_win_set_cursor(pwin, { line, 0 })
                     vfrom, vto = line, line
                 else
                     local to = line
@@ -205,9 +204,20 @@ local function gitdiff(file)
                     hl_group = "Visual",
                     hl_eol = true,
                 })
-                break
+                vim.api.nvim_win_set_cursor(pwin, { step == 1 and vto or vfrom, 0 })
+                return
             end
         end
+        if step == -1 then
+            vim.api.nvim_win_call(pwin, function()
+                vim.cmd("normal! zz")
+            end)
+        end
+    end
+    local function toggle_mode()
+        line_mode = not line_mode
+        vfrom, vto = vfrom - 1, vfrom - 1
+        move(1)
     end
     move(1)
     keymap("<esc>", close, { nil })
@@ -216,6 +226,7 @@ local function gitdiff(file)
     keymap("<down>", move, { 1 })
     keymap("k", move, { -1 })
     keymap("<up>", move, { -1 })
+    keymap("v", toggle_mode, {})
 end
 
 gitstatus(function(item)
