@@ -163,6 +163,7 @@ function gitdiff(selection)
             return
         end
         closed = true
+
         vim.api.nvim_buf_delete(qbuf, {})
         vim.api.nvim_buf_delete(pbuf, {})
         gitstatus(selection.line)
@@ -196,13 +197,13 @@ function gitdiff(selection)
                     local to = line
                     for ln = line + step, last, step do
                         if not is_change(ln) then
-                            local from = math.min(line, to)
-                            to = math.max(line, to)
-                            vfrom, vto = from, to
                             break
                         end
                         to = ln
                     end
+                    local from = math.min(line, to)
+                    to = math.max(line, to)
+                    vfrom, vto = from, to
                 end
                 vim.api.nvim_buf_clear_namespace(pbuf, ns, 0, -1)
                 vim.api.nvim_buf_set_extmark(pbuf, ns, vfrom - 1, 0, {
