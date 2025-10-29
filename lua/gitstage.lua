@@ -132,29 +132,37 @@ local function gitstatus(root, lnum)
 end
 
 function gitdiff(root, selection)
-    local cmd = { "git", "--no-pager", "diff" }
-    if selection.working == '?' then
-        vim.list_extend(cmd, { "--no-index", "/dev/null" })
+    local area = 2
+    local lines = {}
+    local function diff()
+        if area == 1 and selection.index == '?' then
+            return {}
+        end
+        local cmd = { "git", "--no-pager", "diff" }
+        if area == 1 then
+            table.insert(cmd, "--staged")
+        end
+        if selection.working == '?' then
+            vim.list_extend(cmd, { "--no-index", "/dev/null" })
+        end
+        table.insert(cmd, selection.file)
+        local res = gitlist(root, cmd)
+        if selection.working == '?' then
+            res.code = res.code == 1 and 0 or 1
+        end
+        if res.code ~= 0 then
+            warn("git diff failed")
+            return {}
+        end
+        return res.stdout
     end
-    table.insert(cmd, selection.file)
-    local res = gitlist(root, cmd)
-    if selection.working == '?' then
-        res.code = res.code == 1 and 0 or 1
-    end
-    if res.code ~= 0 then
-        warn("git diff failed")
-        return
-    end
-    local lines = res.stdout
-    if #lines == 0 then
-        warn("nothing to stage")
-        return
-    end
+
     local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
+    vim.api.nvim_set_option_value("signcolumn", "auto", { scope = "local", win = pwin })
     vim.api.nvim_set_option_value("cursorline", false, { scope = "local", win = pwin })
-    vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
     vim.bo[pbuf].filetype = "diff"
+
     local closed = false
     local function close(accept)
         if closed then
@@ -210,6 +218,40 @@ function gitdiff(root, selection)
                     hl_group = "Visual",
                     hl_eol = true,
                 })
+
+                local change = 0
+                local tmp = vfrom
+                while true do
+                    local ch = lines[tmp]:sub(1, 1)
+                    if ch == '+' or ch == '-' then
+                        change = change + 1
+                        tmp = tmp - 1
+                    else
+                        break
+                    end
+                end
+                local begin = 0
+                while true do
+                    local ch = lines[tmp]:sub(1, 1)
+                    if ch == '-' or ch == ' ' then
+                        begin = begin + 1
+                    elseif ch == '@' then
+                        local x, y = lines[tmp]:match("^@@ %-(%d+),(%d+) ")
+                        begin = begin + tonumber(x)
+                        if tonumber(y) > 0 then
+                            begin = begin - 1
+                        end
+                        break
+                    end
+                    tmp = tmp - 1
+                end
+
+                vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
+                vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
+                    virt_text = { { selection.file }, { " " .. vfrom .. "," .. vto }, { " " .. begin .. "," .. change } },
+                    virt_text_pos = "right_align",
+                    strict = false,
+                })
                 vim.api.nvim_win_set_cursor(pwin, { step == 1 and vto or vfrom, 0 })
                 return
             end
@@ -228,7 +270,23 @@ function gitdiff(root, selection)
         vto = vfrom - 1
         move(1)
     end
-    move(1)
+    local function update_area()
+        local hl = area == 1 and "Added" or "Removed"
+        vim.api.nvim_set_option_value("statuscolumn", "%#" .. hl .. "#▎ ", { scope = "local", win = pwin })
+        lines = diff()
+        vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
+        local parser = vim.treesitter.get_parser(pbuf)
+        if parser then
+            parser:parse(true)
+        end
+        vfrom, vto = 0, 0
+        move(1)
+    end
+    local function toggle_area()
+        area = area == 1 and 2 or 1
+        update_area()
+    end
+    update_area()
     keymap("<esc>", close, { nil })
     keymap("q", close, { nil })
     keymap("j", move, { 1 })
@@ -236,6 +294,7 @@ function gitdiff(root, selection)
     keymap("k", move, { -1 })
     keymap("<up>", move, { -1 })
     keymap("v", toggle_mode, {})
+    keymap("<tab>", toggle_area, {})
 end
 
 local root = vim.fn.systemlist("git rev-parse --show-toplevel")
