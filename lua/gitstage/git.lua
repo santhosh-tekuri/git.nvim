@@ -24,24 +24,22 @@ function M.status()
     return res.code == 0 and res.stdout or nil
 end
 
-function M.is_tracked(file)
-    return M.system { "git", "ls-files", "--error-unmatch", file }.code == 0
-end
-
-function M.diff(file, staged)
+function M.diff(entry, staged)
     local cmd = { "git", "--no-pager", "diff" }
+    local file = entry:sub(4)
     if staged then
         vim.list_extend(cmd, { "--staged", file })
         local res = M.system(cmd)
         return res.code == 0 and res.stdout or nil
     else
-        local tracked = M.is_tracked(file)
-        if not tracked then
+        local status = entry:sub(2, 2)
+        local untracked = status == '?'
+        if untracked then
             vim.list_extend(cmd, { "--no-index", "/dev/null" })
         end
         table.insert(cmd, file)
         local res = M.system(cmd)
-        if not tracked then
+        if untracked then
             res.code = res.code == 0 and 1 or 0
         end
         return res.code == 0 and res.stdout or nil

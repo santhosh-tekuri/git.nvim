@@ -80,10 +80,8 @@ local function gitstatus(lnum)
         if accept then
             local line = vim.api.nvim_win_get_cursor(pwin)[1]
             selection = {
-                line = line,
-                file = lines[line]:sub(4),
-                index = lines[line]:sub(1, 1),
-                working = lines[line]:sub(2, 2),
+                lnum = line,
+                line = lines[line],
             }
         end
         closed = true
@@ -127,7 +125,7 @@ function gitdiff(selection)
     local area = 2
     local lines = {}
     local function diff()
-        local out = git.diff(selection.file, area == 1)
+        local out = git.diff(selection.line, area == 1)
         if not out then
             warn("git diff failed")
             return {}
@@ -150,7 +148,7 @@ function gitdiff(selection)
 
         vim.api.nvim_buf_delete(qbuf, {})
         vim.api.nvim_buf_delete(pbuf, {})
-        gitstatus(selection.line)
+        gitstatus(selection.lnum)
     end
     vim.api.nvim_create_autocmd('WinLeave', {
         buffer = qbuf,
@@ -228,7 +226,7 @@ function gitdiff(selection)
 
                 vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
                 vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
-                    virt_text = { { selection.file }, { " " .. vfrom .. "," .. vto }, { " " .. begin .. "," .. change } },
+                    virt_text = { { selection.line:sub(4) }, { " " .. vfrom .. "," .. vto }, { " " .. begin .. "," .. change } },
                     virt_text_pos = "right_align",
                     strict = false,
                 })
