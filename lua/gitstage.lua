@@ -237,9 +237,11 @@ function gitdiff(root, selection)
                         begin = begin + 1
                     elseif ch == '@' then
                         local x, y = lines[tmp]:match("^@@ %-(%d+),(%d+) ")
-                        begin = begin + tonumber(x)
-                        if tonumber(y) > 0 then
-                            begin = begin - 1
+                        if x then
+                            begin = begin + tonumber(x)
+                            if tonumber(y) > 0 then
+                                begin = begin - 1
+                            end
                         end
                         break
                     end
@@ -297,9 +299,15 @@ function gitdiff(root, selection)
     keymap("<tab>", toggle_area, {})
 end
 
-local root = vim.fn.systemlist("git rev-parse --show-toplevel")
-if vim.v.shell_error ~= 0 then
-    warn("Not a git repository")
-    return
+local function setup()
+    vim.keymap.set('n', ' x', function()
+        local root = vim.fn.systemlist("git rev-parse --show-toplevel")
+        if vim.v.shell_error ~= 0 then
+            warn("Not a git repository")
+            return
+        end
+        gitstatus(root[1])
+    end)
 end
-gitstatus(root[1])
+
+return { setup = setup }
