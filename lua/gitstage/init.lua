@@ -1,16 +1,9 @@
+local git = require("gitstage.git")
+
 local ns = vim.api.nvim_create_namespace("gitstage")
 
 local function warn(msg)
     vim.api.nvim_echo({ { msg, "WarningMsg" } }, false, {})
-end
-
-local function gitlist(cwd, cmd)
-    local res = vim.system(cmd, { cwd = cwd, text = true }):wait()
-    return {
-        code = res.code,
-        stdout = res.stdout and vim.split(res.stdout, '\n', { trimempty = true }) or {},
-        stderr = res.stderr and vim.split(res.stderr, '\n', { trimempty = true }) or {},
-    }
 end
 
 local function setup_query()
@@ -50,13 +43,12 @@ end
 
 local gitdiff
 
-local function gitstatus(root, lnum)
-    local res = gitlist(root, { "git", "--no-pager", "status", "-uall", "--porcelain=v1" })
-    if res.code ~= 0 then
+local function gitstatus(lnum)
+    local lines = git.status()
+    if not lines then
         warn("git status failed")
         return
     end
-    local lines = res.stdout
     if #lines == 0 then
         warn("No changes detected. working tree clean")
         return
@@ -98,7 +90,7 @@ local function gitstatus(root, lnum)
         vim.api.nvim_buf_delete(qbuf, {})
         vim.api.nvim_buf_delete(pbuf, {})
         if selection then
-            gitdiff(root, selection)
+            gitdiff(selection)
         end
     end
     local function move(i)
@@ -131,30 +123,16 @@ local function gitstatus(root, lnum)
     keymap("<up>", move, { -1 })
 end
 
-function gitdiff(root, selection)
+function gitdiff(selection)
     local area = 2
     local lines = {}
     local function diff()
-        if area == 1 and selection.index == '?' then
-            return {}
-        end
-        local cmd = { "git", "--no-pager", "diff" }
-        if area == 1 then
-            table.insert(cmd, "--staged")
-        end
-        if selection.working == '?' then
-            vim.list_extend(cmd, { "--no-index", "/dev/null" })
-        end
-        table.insert(cmd, selection.file)
-        local res = gitlist(root, cmd)
-        if selection.working == '?' then
-            res.code = res.code == 1 and 0 or 1
-        end
-        if res.code ~= 0 then
+        local out = git.diff(selection.file, area == 1)
+        if not out then
             warn("git diff failed")
             return {}
         end
-        return res.stdout
+        return out
     end
 
     local qbuf, qwin = setup_query()
@@ -172,7 +150,7 @@ function gitdiff(root, selection)
 
         vim.api.nvim_buf_delete(qbuf, {})
         vim.api.nvim_buf_delete(pbuf, {})
-        gitstatus(root, selection.line)
+        gitstatus(selection.line)
     end
     vim.api.nvim_create_autocmd('WinLeave', {
         buffer = qbuf,
@@ -301,12 +279,11 @@ end
 
 local function setup()
     vim.keymap.set('n', ' x', function()
-        local root = vim.fn.systemlist("git rev-parse --show-toplevel")
-        if vim.v.shell_error ~= 0 then
+        if not git.find_root() then
             warn("Not a git repository")
             return
         end
-        gitstatus(root[1])
+        gitstatus()
     end)
 end
 
