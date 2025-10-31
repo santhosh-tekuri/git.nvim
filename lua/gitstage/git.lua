@@ -46,4 +46,15 @@ function M.diff(entry, staged)
     end
 end
 
+function M.stage(patch)
+    table.insert(patch, "")
+    patch = table.concat(patch, '\n')
+    local res = vim.system({ "git", "apply", "--cached", "-" }, { cwd = M.root, text = true, stdin = patch }):wait()
+    return {
+        code = res.code,
+        stdout = res.stdout and vim.split(res.stdout, '\n', { trimempty = true }) or {},
+        stderr = res.stderr and vim.split(res.stderr, '\n', { trimempty = true }) or {},
+    }
+end
+
 return M

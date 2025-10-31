@@ -204,6 +204,22 @@ function gitdiff(selection)
         area = area == 1 and 2 or 1
         update_area()
     end
+    local function apply()
+        if not diff.selection then
+            return
+        end
+        local res
+        if area == 2 then
+            res = git.stage(diff:patch())
+        else
+            res = { code = 0 }
+        end
+        if res.code ~= 0 then
+            warn(table.concat(res.stderr, '\n'))
+        else
+            update_area()
+        end
+    end
     keymap("<esc>", close, { nil })
     keymap("q", close, { nil })
     keymap("j", move, { 1 })
@@ -212,6 +228,7 @@ function gitdiff(selection)
     keymap("<up>", move, { -1 })
     keymap("v", toggle_mode, {})
     keymap("<tab>", toggle_area, {})
+    keymap(" ", apply, {})
     update_area()
 end
 

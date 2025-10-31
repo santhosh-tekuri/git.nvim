@@ -90,4 +90,84 @@ function M:toggle_mode()
     self.selection = { vfrom, vto }
 end
 
+local function parse_hunk_range(line)
+    local old, new, section = line:match("^@@ %-(%S+) %+(%S+) @@(.*)$")
+    local function range(s)
+        local comma = s:find(',', 1, true)
+        if comma then
+            local t = { tonumber(s:sub(1, comma - 1)), tonumber(s:sub(comma + 1)) }
+            if t[2] == 0 then
+                t[1] = t[1] + 1
+            end
+            return t
+        else
+            return { tonumber(s), 1 }
+        end
+    end
+    return { old = range(old), new = range(new), section = section:sub(2) }
+end
+
+local function hunk_range_line(hunk)
+    local function range(arr)
+        if arr[2] == 0 then
+            return ("%d"):format(arr[1] - 1)
+        elseif arr[2] == 1 then
+            return ("%d"):format(arr[1])
+        else
+            return ("%d,%d"):format(arr[1], arr[2])
+        end
+    end
+    local s = "@@ -" .. range(hunk.old) .. " +" .. range(hunk.new) .. " @@"
+    if #hunk.section > 0 then
+        s = s .. " " .. hunk.section
+    end
+    return s
+end
+
+function M:patch()
+    local h = self:header()
+    local patch = {}
+    for i = 1, h do
+        table.insert(patch, self.lines[i])
+    end
+    local from, to = unpack(self.selection)
+    local i = from - 1
+    while self.lines[i]:sub(1, 1) ~= '@' do
+        i = i - 1
+    end
+    table.insert(patch, self.lines[i])
+    i = i + 1
+    local olen, nlen = 0, 0
+    while i < #self.lines and self.lines[i]:sub(1, 1) ~= '@' do
+        local ch = self.lines[i]:sub(1, 1)
+        if i >= from and i <= to then
+            table.insert(patch, self.lines[i])
+            if ch == '+' then
+                nlen = nlen + 1
+            else
+                olen = olen + 1
+            end
+        else
+            local line
+            if ch == ' ' then
+                line = self.lines[i]
+            elseif ch == '-' then
+                line = ' ' .. self.lines[i]:sub(2)
+            end
+            if line then
+                table.insert(patch, line)
+                olen = olen + 1
+                nlen = nlen + 1
+            end
+        end
+        i = i + 1
+    end
+
+    local range = parse_hunk_range(patch[h + 1])
+    range.old[2] = olen
+    range.new[2] = nlen
+    patch[h + 1] = hunk_range_line(range)
+    return patch
+end
+
 return M
