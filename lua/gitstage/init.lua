@@ -154,11 +154,7 @@ function gitdiff(selection)
             func(unpack(args or {}))
         end, { buffer = qbuf, nowait = true })
     end
-    local function move(step)
-        if diff:empty() then
-            return
-        end
-        local dselection = diff:select(step)
+    local function set_selection(dselection, step)
         if not dselection then
             if step == -1 then
                 vim.api.nvim_win_call(pwin, function()
@@ -185,9 +181,17 @@ function gitdiff(selection)
             strict = false,
         })
     end
+    local function move(step)
+        if diff:empty() then
+            return
+        end
+        set_selection(diff:select(step))
+    end
     local function toggle_mode()
-        diff:toggle_mode()
-        move(1)
+        if diff:empty() then
+            return
+        end
+        set_selection(diff:toggle_mode())
     end
     local function update_area()
         local hl = area == 1 and "Added" or "Removed"

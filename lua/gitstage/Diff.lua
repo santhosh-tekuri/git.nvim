@@ -25,9 +25,9 @@ function M:is_change(line)
     return ch == '+' or ch == '-'
 end
 
-function M:select(step)
+function M:select(step, selection)
     local h = self:header()
-    local sel = self.selection or { h + 1, h + 1 }
+    local sel = selection or self.selection or { h + 1, h + 1 }
     local last = step == 1 and #self.lines or h + 2
     local cur = step == 1 and sel[2] or sel[1]
     for i = cur + step, last, step do
@@ -88,7 +88,7 @@ function M:toggle_mode()
         vfrom = vfrom - 1
     end
     vto = vfrom - 1
-    self.selection = { vfrom, vto }
+    return self:select(1, { vfrom, vto })
 end
 
 local function parse_hunk_range(line)
