@@ -216,7 +216,7 @@ function gitdiff(selection)
         if area == 2 then
             res = git.stage(diff:patch_with_selection())
         else
-            res = { code = 0 }
+            res = git.restore(selection.line)
         end
         if res.code ~= 0 then
             warn(table.concat(res.stderr, '\n'))

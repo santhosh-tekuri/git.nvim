@@ -46,6 +46,11 @@ function M.diff(entry, staged)
     end
 end
 
+function M.restore(entry)
+    local file = entry:sub(4)
+    return M.system({ "git", "restore", "--staged", file })
+end
+
 function M.stage(patch)
     table.insert(patch, "")
     patch = table.concat(patch, '\n')
