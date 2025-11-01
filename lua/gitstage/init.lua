@@ -202,16 +202,17 @@ function gitdiff(selection)
         end
         diff = Diff:new(out and out or {}, diff.line_mode)
         vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, diff.lines)
-        move(1)
     end
     local function toggle_area()
         area = area == 1 and 2 or 1
         update_area()
+        move(1)
     end
     local function apply()
         if not diff.selection then
             return
         end
+        local sel = diff.selection
         local res
         if area == 2 then
             res = git.stage(diff:patch_with_selection())
@@ -228,6 +229,15 @@ function gitdiff(selection)
             warn(table.concat(res.stderr, '\n'))
         else
             update_area()
+            local s = diff:select(1, { sel[1] - 1, sel[1] - 1 })
+            if not s then
+                s = diff:select(-1, { sel[1], sel[1] })
+            end
+            if s then
+                set_selection(s, 1)
+            else
+                move(1)
+            end
         end
     end
     keymap("<esc>", close, { nil })
@@ -240,6 +250,7 @@ function gitdiff(selection)
     keymap("<tab>", toggle_area, {})
     keymap(" ", apply, {})
     update_area()
+    move(1)
 end
 
 local function setup()
