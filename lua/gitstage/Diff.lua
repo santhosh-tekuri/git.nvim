@@ -111,7 +111,7 @@ end
 local function hunk_range_line(hunk)
     local function range(arr)
         if arr[2] == 0 then
-            return ("%d"):format(arr[1] - 1)
+            return ("%d,0"):format(arr[1] - 1)
         elseif arr[2] == 1 then
             return ("%d"):format(arr[1])
         else
