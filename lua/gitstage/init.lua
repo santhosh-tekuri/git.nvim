@@ -210,7 +210,7 @@ function gitdiff(selection)
         end
         local res
         if area == 2 then
-            res = git.stage(diff:patch())
+            res = git.stage(diff:patch_with_selection())
         else
             res = { code = 0 }
         end

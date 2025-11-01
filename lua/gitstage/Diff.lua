@@ -124,7 +124,7 @@ local function hunk_range_line(hunk)
     return s
 end
 
-function M:patch()
+function M:patch_with_selection()
     local h = self:header()
     local patch = {}
     for i = 1, h do
@@ -138,7 +138,7 @@ function M:patch()
     table.insert(patch, self.lines[i])
     i = i + 1
     local olen, nlen = 0, 0
-    while i < #self.lines and self.lines[i]:sub(1, 1) ~= '@' do
+    while i <= #self.lines and self.lines[i]:sub(1, 1) ~= '@' do
         local ch = self.lines[i]:sub(1, 1)
         if i >= from and i <= to then
             table.insert(patch, self.lines[i])
