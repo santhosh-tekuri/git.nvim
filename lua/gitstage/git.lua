@@ -24,9 +24,17 @@ function M.status()
     return res.code == 0 and res.stdout or nil
 end
 
-function M.diff(entry, staged)
+function M.status_file(file)
+    local res = M.system { "git", "--no-pager", "status", "-uall", "--porcelain=v1", file }
+    return res.code == 0 and res.stdout[1] or nil
+end
+
+function M.diff(file, staged)
+    local entry = M.status_file(file)
+    if not entry then
+        return nil
+    end
     local cmd = { "git", "--no-pager", "diff" }
-    local file = entry:sub(4)
     if staged then
         vim.list_extend(cmd, { "--staged", file })
         local res = M.system(cmd)

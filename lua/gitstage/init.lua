@@ -196,7 +196,7 @@ function gitdiff(selection)
     local function update_area()
         local hl = area == 1 and "Added" or "Removed"
         vim.api.nvim_set_option_value("statuscolumn", "%#" .. hl .. "#▎ ", { scope = "local", win = pwin })
-        local out = git.diff(selection.line, area == 1)
+        local out = git.diff(selection.line:sub(4), area == 1)
         if not out then
             warn("git diff failed")
         end

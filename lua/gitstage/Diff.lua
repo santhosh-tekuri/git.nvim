@@ -26,6 +26,9 @@ function M:is_change(line)
 end
 
 function M:select(step, selection)
+    if #self.lines == 0 then
+        return
+    end
     local h = self:header()
     local sel = selection or self.selection or { h + 1, h + 1 }
     local last = step == 1 and #self.lines or h + 2
