@@ -17,6 +17,7 @@ function M:header()
             return i - 1
         end
     end
+    return #self.lines -- no hunks
 end
 
 function M:is_change(line)
