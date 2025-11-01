@@ -25,7 +25,7 @@ function M.status()
 end
 
 function M.status_file(file)
-    local res = M.system { "git", "--no-pager", "status", "-uall", "--porcelain=v1", file }
+    local res = M.system { "git", "--no-pager", "status", "-uall", "--porcelain=v1", "--", file }
     return res.code == 0 and res.stdout[1] or nil
 end
 
@@ -36,14 +36,16 @@ function M.diff(file, staged)
     end
     local cmd = { "git", "--no-pager", "diff" }
     if staged then
-        vim.list_extend(cmd, { "--staged", file })
+        vim.list_extend(cmd, { "--staged", "--", file })
         local res = M.system(cmd)
         return res.code == 0 and res.stdout or nil
     else
         local status = entry:sub(2, 2)
         local untracked = status == '?'
         if untracked then
-            vim.list_extend(cmd, { "--no-index", "/dev/null" })
+            vim.list_extend(cmd, { "--no-index", "--", "/dev/null" })
+        else
+            table.insert(cmd, "--")
         end
         table.insert(cmd, file)
         local res = M.system(cmd)
@@ -62,6 +64,11 @@ end
 function M.stage(patch)
     table.insert(patch, "")
     patch = table.concat(patch, '\n')
+    local file = io.open("stage.diff", "w")
+    if file then
+        file:write(patch)
+        file:close()
+    end
     local res = vim.system({ "git", "apply", "--cached", "-" }, { cwd = M.root, text = true, stdin = patch }):wait()
     return {
         code = res.code,
