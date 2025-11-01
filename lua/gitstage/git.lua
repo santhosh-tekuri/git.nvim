@@ -56,9 +56,8 @@ function M.diff(file, staged)
     end
 end
 
-function M.restore(entry)
-    local file = entry:sub(4)
-    return M.system({ "git", "restore", "--staged", file })
+function M.restore(file)
+    return M.system({ "git", "restore", "--staged", "--", file })
 end
 
 function M.stage(patch)
