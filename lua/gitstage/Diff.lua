@@ -126,16 +126,21 @@ local function hunk_range_line(hunk)
 end
 
 function M:patch_with_selection()
-    local h = self:header()
     local patch = {}
+
+    -- add header
+    local h = self:header()
     for i = 1, h do
         table.insert(patch, self.lines[i])
     end
+
+    -- locate hunk start
     local from, to = unpack(self.selection)
     local i = from - 1
     while self.lines[i]:sub(1, 1) ~= '@' do
         i = i - 1
     end
+
     table.insert(patch, self.lines[i])
     i = i + 1
     local olen, nlen = 0, 0
@@ -169,6 +174,73 @@ function M:patch_with_selection()
     range.new[2] = nlen
     patch[h + 1] = hunk_range_line(range)
     return patch
+end
+
+function M:patch_without_selection()
+    local patch = {}
+
+    -- add header
+    local h = self:header()
+    for i = 1, h do
+        table.insert(patch, self.lines[i])
+    end
+
+    -- locate hunk start
+    local from, to = unpack(self.selection)
+    local i = from - 1
+    while self.lines[i]:sub(1, 1) ~= '@' do
+        i = i - 1
+    end
+
+    -- add hunks before selection
+    for j = h + 1, i - 1 do
+        local line = self.lines[j]
+        table.insert(patch, line)
+    end
+
+    local hunk = { self.lines[i] }
+    i = i + 1
+    local olen, nlen, changes = 0, 0, false
+    while i <= #self.lines and self.lines[i]:sub(1, 1) ~= '@' do
+        local ch = self.lines[i]:sub(1, 1)
+        if i >= from and i <= to then
+            local line
+            if ch == '-' then
+                line = ' ' .. self.lines[i]:sub(2)
+                table.insert(hunk, line)
+                olen = olen + 1
+                nlen = nlen + 1
+            end
+        else
+            table.insert(hunk, self.lines[i])
+            if ch == '+' then
+                changes = true
+                nlen = nlen + 1
+            elseif ch == '-' then
+                changes = true
+                olen = olen + 1
+            else
+                olen = olen + 1
+                nlen = nlen + 1
+            end
+        end
+        i = i + 1
+    end
+    if changes then
+        local range = parse_hunk_range(hunk[1])
+        range.old[2] = olen
+        range.new[2] = nlen
+        hunk[1] = hunk_range_line(range)
+        vim.list_extend(patch, hunk)
+    end
+
+    -- add hunks after selection
+    for j = i, #self.lines do
+        local line = self.lines[j]
+        table.insert(patch, line)
+    end
+
+    return #patch > h and patch or nil
 end
 
 return M

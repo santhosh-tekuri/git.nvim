@@ -217,6 +217,12 @@ function gitdiff(selection)
             res = git.stage(diff:patch_with_selection())
         else
             res = git.restore(selection.line)
+            if res.code == 0 then
+                local patch = diff:patch_without_selection()
+                if patch then
+                    res = git.stage(patch)
+                end
+            end
         end
         if res.code ~= 0 then
             warn(table.concat(res.stderr, '\n'))
