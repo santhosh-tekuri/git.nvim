@@ -181,21 +181,32 @@ function gitdiff(selection)
             strict = false,
         })
     end
+    local function first()
+        if diff:empty() then
+            return
+        end
+        local h = diff:header()
+        set_selection(diff:select(1, { h + 1, h + 1 }))
+    end
+    local function last()
+        if diff:empty() then
+            return
+        end
+        local c = #diff.lines
+        set_selection(diff:select(-1, { c, c }))
+    end
     local function move(step)
         if diff:empty() then
             return
         end
         local sel = diff:select(step)
-        if not sel then
-            if step == 1 then
-                local h = diff:header()
-                sel = diff:select(step, { h + 1, h + 1 })
-            else
-                local c = #diff.lines
-                sel = diff:select(step, { c, c })
-            end
+        if sel then
+            set_selection(sel, step)
+        elseif step == 1 then
+            first()
+        else
+            last()
         end
-        set_selection(sel)
     end
     local function toggle_mode()
         if diff:empty() then
@@ -256,6 +267,8 @@ function gitdiff(selection)
     keymap("<down>", move, { 1 })
     keymap("k", move, { -1 })
     keymap("<up>", move, { -1 })
+    keymap("gg", first, {})
+    keymap("G", last, {})
     keymap("v", toggle_mode, {})
     keymap("<tab>", toggle_area, {})
     keymap(" ", apply, {})
