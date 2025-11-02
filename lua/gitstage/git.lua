@@ -89,4 +89,67 @@ function M.stage(patch)
     }
 end
 
+function M.commitmsg()
+    local staged = M.system({ "git", "diff", "--staged" })
+    if staged.code ~= 0 then
+        return nil
+    end
+    if #staged.stdout == 0 then
+        return {}
+    end
+    local template = [[Please enter the commit message for your changes. Lines starting
+with '#' will be ignored, and an empty message aborts the commit.]]
+
+    local msg = { "" }
+    for _, line in ipairs(vim.split(template, "\n", { trimempty = true })) do
+        if #line == 0 then
+            table.insert(msg, "#")
+        else
+            table.insert(msg, "# " .. line)
+        end
+    end
+    table.insert(msg, "#")
+    local res = M.system({ "git", "status" })
+    if res.code ~= 0 then
+        return nil
+    end
+
+    local last = res.stdout[#res.stdout]
+    if last:sub(1, #"no changes added to commit") == "no changes added to commit" then
+        table.remove(res.stdout)
+        table.remove(res.stdout)
+    end
+    for _, line in ipairs(res.stdout) do
+        if #line == 0 then
+            table.insert(msg, "#")
+        else
+            table.insert(msg, "# " .. line)
+        end
+    end
+
+    table.insert(msg, "#")
+    local marker = [[------------------------ >8 ------------------------
+Do not modify or remove the line above.
+Everything below it will be ignored.]]
+    for _, line in ipairs(vim.split(marker, "\n", { trimempty = true })) do
+        if #line == 0 then
+            table.insert(msg, "#")
+        else
+            table.insert(msg, "# " .. line)
+        end
+    end
+    vim.list_extend(msg, staged.stdout)
+
+    return msg
+end
+
+function M.commit(msg)
+    local res = vim.system({ "git", "commit", "-F", "-" }, { cwd = M.root, text = true, stdin = msg }):wait()
+    return {
+        code = res.code,
+        stdout = res.stdout and vim.split(res.stdout, '\n', { trimempty = true }) or {},
+        stderr = res.stderr and vim.split(res.stderr, '\n', { trimempty = true }) or {},
+    }
+end
+
 return M

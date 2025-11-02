@@ -4,7 +4,7 @@ local Diff = require("gitstage.Diff")
 local ns = vim.api.nvim_create_namespace("gitstage")
 
 local function warn(msg)
-    vim.api.nvim_echo({ { msg, "WarningMsg" } }, false, {})
+    vim.api.nvim_echo({ { "\n" .. msg, "WarningMsg" } }, false, {})
 end
 
 local function setup_query()
@@ -17,7 +17,7 @@ local function setup_query()
         row = vim.o.lines,
         col = 0,
         style = "minimal",
-        zindex = 250,
+        zindex = 200,
     })
     vim.api.nvim_set_option_value("statuscolumn", ":", { scope = "local", win = qwin })
     vim.api.nvim_set_option_value("winhighlight", "NormalFloat:MsgArea", { scope = "local", win = qwin })
@@ -38,11 +38,56 @@ local function setup_preview()
     })
     vim.api.nvim_set_option_value("winhighlight", "Normal:Normal,FloatBorder:Normal", { scope = "local", win = pwin })
     vim.api.nvim_set_option_value("wrap", false, { scope = "local", win = pwin })
-    vim.api.nvim_set_option_value("cursorline", true, { scope = "local", win = pwin })
     return pbuf, pwin
 end
 
 local gitdiff
+
+local function gitcommit(msg)
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_name(buf, "COMMIT_EDITMSG")
+    vim.bo[buf].filetype = "gitcommit"
+    vim.bo[buf].buftype = "acwrite"
+    vim.bo[buf].swapfile = false
+    vim.bo[buf].bufhidden = "wipe"
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, msg)
+    vim.bo[buf].modified = false
+    local win = vim.api.nvim_open_win(buf, true, {
+        relative = "editor",
+        row = 0,
+        col = 0,
+        width = vim.o.columns,
+        height = vim.o.lines - 1,
+        focusable = false,
+        zindex = 50,
+    })
+    vim.api.nvim_set_option_value("winhighlight", "Normal:Normal,FloatBorder:Normal", { scope = "local", win = win })
+    vim.api.nvim_set_option_value("wrap", false, { scope = "local", win = win })
+    vim.api.nvim_create_autocmd("BufWriteCmd", {
+        buffer = buf,
+        callback = function()
+            local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+            local m = {}
+            for _, line in ipairs(lines) do
+                if line:sub(1, 1) == "#" then
+                    break
+                end
+                table.insert(m, line)
+            end
+            local res = git.commit(table.concat(m, "\n"))
+            if res.code ~= 0 then
+                warn(table.concat(res.stderr, "\n"))
+                return
+            end
+            vim.bo.modified = false
+            vim.schedule(function()
+                if vim.api.nvim_buf_is_valid(buf) then
+                    vim.api.nvim_buf_delete(buf, { force = true })
+                end
+            end)
+        end
+    })
+end
 
 local function gitstatus(file)
     local lines = git.status()
@@ -57,6 +102,7 @@ local function gitstatus(file)
 
     local qbuf, _qwin = setup_query()
     local pbuf, pwin = setup_preview()
+    vim.api.nvim_set_option_value("cursorline", true, { scope = "local", win = pwin })
     local function update_content(f)
         vim.api.nvim_buf_clear_namespace(pbuf, ns, 0, -1)
         vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
@@ -136,6 +182,17 @@ local function gitstatus(file)
         lines = git.status()
         update_content(f)
     end
+    local function commit()
+        local msg = git.commitmsg()
+        if not msg then
+            warn("failed to create commit message")
+        elseif #msg == 0 then
+            warn("nothing to commit")
+        else
+            close(nil)
+            gitcommit(msg)
+        end
+    end
     keymap("<esc>", close, { nil })
     keymap("q", close, { nil })
     keymap("o", close, { true })
@@ -147,6 +204,7 @@ local function gitstatus(file)
     keymap("gg", first, {})
     keymap("G", last, {})
     keymap("<space>", toggle_status, {})
+    keymap("c", commit, {})
 end
 
 function gitdiff(file)
@@ -298,7 +356,7 @@ function gitdiff(file)
     keymap("G", last, {})
     keymap("v", toggle_mode, {})
     keymap("<tab>", toggle_area, {})
-    keymap(" ", apply, {})
+    keymap("<space>", apply, {})
     update_area()
     move(1)
 end
