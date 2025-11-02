@@ -185,7 +185,17 @@ function gitdiff(selection)
         if diff:empty() then
             return
         end
-        set_selection(diff:select(step))
+        local sel = diff:select(step)
+        if not sel then
+            if step == 1 then
+                local h = diff:header()
+                sel = diff:select(step, { h + 1, h + 1 })
+            else
+                local c = #diff.lines
+                sel = diff:select(step, { c, c })
+            end
+        end
+        set_selection(sel)
     end
     local function toggle_mode()
         if diff:empty() then
