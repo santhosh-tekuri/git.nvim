@@ -92,6 +92,12 @@ local function gitstatus(lnum)
             gitdiff(selection)
         end
     end
+    local function first()
+        vim.api.nvim_win_set_cursor(pwin, { 1, 0 })
+    end
+    local function last()
+        vim.api.nvim_win_set_cursor(pwin, { #lines, 0 })
+    end
     local function move(i)
         local line = vim.api.nvim_win_get_cursor(pwin)[1] + i
         if line <= 0 then
@@ -120,6 +126,8 @@ local function gitstatus(lnum)
     keymap("<down>", move, { 1 })
     keymap("k", move, { -1 })
     keymap("<up>", move, { -1 })
+    keymap("gg", first, {})
+    keymap("G", last, {})
 end
 
 function gitdiff(selection)
