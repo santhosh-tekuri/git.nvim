@@ -44,7 +44,7 @@ end
 
 local gitdiff
 
-local function gitstatus(lnum)
+local function gitstatus(file)
     local lines = git.status()
     if not lines then
         warn("git status failed")
@@ -58,7 +58,14 @@ local function gitstatus(lnum)
     local qbuf, _qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
-    vim.api.nvim_win_set_cursor(pwin, { lnum or 1, 0 })
+    if file then
+        for i, line in ipairs(lines) do
+            if line:sub(#line - #file + 1) == file or line:find(" " .. file .. " ", 1, true) then
+                vim.api.nvim_win_set_cursor(pwin, { i, 0 })
+                break
+            end
+        end
+    end
     for i, line in ipairs(lines) do
         vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
             end_row = i - 1,
@@ -80,10 +87,7 @@ local function gitstatus(lnum)
         local selection = nil
         if accept then
             local line = vim.api.nvim_win_get_cursor(pwin)[1]
-            selection = {
-                lnum = line,
-                line = lines[line],
-            }
+            selection = lines[line]:sub(4)
         end
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
@@ -130,7 +134,7 @@ local function gitstatus(lnum)
     keymap("G", last, {})
 end
 
-function gitdiff(selection)
+function gitdiff(file)
     local area = 2
     local diff = Diff:new({}, false)
 
@@ -149,7 +153,7 @@ function gitdiff(selection)
 
         vim.api.nvim_buf_delete(qbuf, {})
         vim.api.nvim_buf_delete(pbuf, {})
-        gitstatus(selection.lnum)
+        gitstatus(file)
     end
     vim.api.nvim_create_autocmd('WinLeave', {
         buffer = qbuf,
@@ -184,7 +188,7 @@ function gitdiff(selection)
         local begin, change = unpack(diff:selection_loc())
         vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
         vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
-            virt_text = { { selection.line:sub(4) }, { " " .. vfrom .. "," .. vto }, { " " .. begin .. "," .. change } },
+            virt_text = { { file }, { " " .. vfrom .. "," .. vto }, { " " .. begin .. "," .. change } },
             virt_text_pos = "right_align",
             strict = false,
         })
@@ -225,7 +229,7 @@ function gitdiff(selection)
     local function update_area()
         local hl = area == 1 and "Added" or "Removed"
         vim.api.nvim_set_option_value("statuscolumn", "%#" .. hl .. "#▎ ", { scope = "local", win = pwin })
-        local out = git.diff(selection.line:sub(4), area == 1)
+        local out = git.diff(file, area == 1)
         if not out then
             warn("git diff failed")
         end
@@ -246,7 +250,7 @@ function gitdiff(selection)
         if area == 2 then
             res = git.stage(diff:patch_with_selection())
         else
-            res = git.restore(selection.line:sub(4))
+            res = git.restore(file)
             if res.code == 0 then
                 local patch = diff:patch_without_selection()
                 if patch then
