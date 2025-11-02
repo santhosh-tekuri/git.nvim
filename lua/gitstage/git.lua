@@ -60,6 +60,19 @@ function M.restore(file)
     return M.system({ "git", "restore", "--staged", "--", file })
 end
 
+function M.toggle_status(file)
+    local entry = M.status_file(file)
+    if not entry then
+        return { code = 1, stderr = { "file not found" } }
+    end
+    local ch = entry:sub(2, 2)
+    if ch == '?' or ch ~= ' ' then
+        return M.system({ "git", "add", "--", file })
+    else
+        return M.restore(file)
+    end
+end
+
 function M.stage(patch)
     table.insert(patch, "")
     patch = table.concat(patch, '\n')

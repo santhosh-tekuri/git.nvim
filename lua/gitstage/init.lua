@@ -57,27 +57,31 @@ local function gitstatus(file)
 
     local qbuf, _qwin = setup_query()
     local pbuf, pwin = setup_preview()
-    vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
-    if file then
-        for i, line in ipairs(lines) do
-            if line:sub(#line - #file + 1) == file or line:find(" " .. file .. " ", 1, true) then
-                vim.api.nvim_win_set_cursor(pwin, { i, 0 })
-                break
+    local function update_content(f)
+        vim.api.nvim_buf_clear_namespace(pbuf, ns, 0, -1)
+        vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
+        if f then
+            for i, line in ipairs(lines) do
+                if line:sub(#line - #f + 1) == f or line:find(" " .. f .. " ", 1, true) then
+                    vim.api.nvim_win_set_cursor(pwin, { i, 0 })
+                    break
+                end
             end
         end
+        for i, line in ipairs(lines) do
+            vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                end_row = i - 1,
+                end_col = 1,
+                hl_group = line:sub(1, 1) == "?" and "Removed" or "Added",
+            })
+            vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 1, {
+                end_row = i - 1,
+                end_col = 2,
+                hl_group = "Removed",
+            })
+        end
     end
-    for i, line in ipairs(lines) do
-        vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
-            end_row = i - 1,
-            end_col = 1,
-            hl_group = line:sub(1, 1) == "?" and "Removed" or "Added",
-        })
-        vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 1, {
-            end_row = i - 1,
-            end_col = 2,
-            hl_group = "Removed",
-        })
-    end
+    update_content(file)
 
     local closed = false
     local function close(accept)
@@ -122,6 +126,16 @@ local function gitstatus(file)
             func(unpack(args or {}))
         end, { buffer = qbuf, nowait = true })
     end
+    local function toggle_status()
+        local line = vim.api.nvim_win_get_cursor(pwin)[1]
+        local f = lines[line]:sub(4)
+        local res = git.toggle_status(f)
+        if res.code ~= 0 then
+            warn(table.concat(res.stderr, '\n'))
+        end
+        lines = git.status()
+        update_content(f)
+    end
     keymap("<esc>", close, { nil })
     keymap("q", close, { nil })
     keymap("o", close, { true })
@@ -132,6 +146,7 @@ local function gitstatus(file)
     keymap("<up>", move, { -1 })
     keymap("gg", first, {})
     keymap("G", last, {})
+    keymap("<space>", toggle_status, {})
 end
 
 function gitdiff(file)
