@@ -55,7 +55,7 @@ local function gitstatus(lnum)
         return
     end
 
-    local qbuf, qwin = setup_query()
+    local qbuf, _qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
     vim.api.nvim_win_set_cursor(pwin, { lnum or 1, 0 })
@@ -134,14 +134,14 @@ function gitdiff(selection)
     local area = 2
     local diff = Diff:new({}, false)
 
-    local qbuf, qwin = setup_query()
+    local qbuf, _qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("signcolumn", "auto", { scope = "local", win = pwin })
     vim.api.nvim_set_option_value("cursorline", false, { scope = "local", win = pwin })
     vim.bo[pbuf].filetype = "diff"
 
     local closed = false
-    local function close(accept)
+    local function close()
         if closed then
             return
         end
@@ -269,8 +269,8 @@ function gitdiff(selection)
             end
         end
     end
-    keymap("<esc>", close, { nil })
-    keymap("q", close, { nil })
+    keymap("<esc>", close, {})
+    keymap("q", close, {})
     keymap("j", move, { 1 })
     keymap("<down>", move, { 1 })
     keymap("k", move, { -1 })
