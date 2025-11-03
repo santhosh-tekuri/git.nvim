@@ -25,7 +25,14 @@ function M.status()
 end
 
 function M.status_file(file)
-    local res = M.system { "git", "--no-pager", "status", "-uall", "--porcelain=v1", "--", file }
+    local cmd = { "git", "--no-pager", "status", "-uall", "--porcelain=v1", "--" }
+    local b, e = file:find(" -> ", 1, true)
+    if b then
+        vim.list_extend(cmd, { file:sub(1, b - 1), file:sub(e + 1) })
+    else
+        table.insert(cmd, file)
+    end
+    local res = M.system(cmd)
     return res.code == 0 and res.stdout[1] or nil
 end
 
@@ -35,19 +42,28 @@ function M.diff(file, staged)
         return nil
     end
     local cmd = { "git", "--no-pager", "diff" }
+    local function add_file(f)
+        local b, e = f:find(" -> ", 1, true)
+        if b then
+            vim.list_extend(cmd, { "--", f:sub(1, b - 1), f:sub(e + 1) })
+        else
+            vim.list_extend(cmd, { "--", f })
+        end
+    end
     if staged then
-        vim.list_extend(cmd, { "--staged", "--", file })
+        table.insert(cmd, "--staged")
+        add_file(file)
         local res = M.system(cmd)
         return res.code == 0 and res.stdout or nil
     else
         local status = entry:sub(2, 2)
         local untracked = status == '?'
         if untracked then
-            vim.list_extend(cmd, { "--no-index", "--", "/dev/null" })
+            table.insert(cmd, "--no-index")
+            add_file("/dev/null -> " .. file)
         else
-            table.insert(cmd, "--")
+            add_file(file)
         end
-        table.insert(cmd, file)
         local res = M.system(cmd)
         if untracked then
             res.code = res.code == 0 and 1 or 0
@@ -66,6 +82,10 @@ function M.toggle_status(file)
         return { code = 1, stderr = { "file not found" } }
     end
     local ch = entry:sub(2, 2)
+    local b, e = entry:find(" -> ", 1, true)
+    if b then
+        file = entry:sub(e + 1)
+    end
     if ch == '?' or ch ~= ' ' then
         return M.system({ "git", "add", "--", file })
     else

@@ -1,5 +1,5 @@
-local git = require("gitstage.git")
-local Diff = require("gitstage.Diff")
+local cli = require("git.cli")
+local Diff = require("git.Diff")
 
 local ns = vim.api.nvim_create_namespace("gitstage")
 
@@ -73,7 +73,7 @@ local function gitcommit(msg)
                 end
                 table.insert(m, line)
             end
-            local res = git.commit(table.concat(m, "\n"))
+            local res = cli.commit(table.concat(m, "\n"))
             if res.code ~= 0 then
                 warn(table.concat(res.stderr, "\n"))
                 return
@@ -90,7 +90,7 @@ local function gitcommit(msg)
 end
 
 local function gitstatus(file)
-    local lines = git.status()
+    local lines = cli.status()
     if not lines then
         warn("git status failed")
         return
@@ -184,15 +184,15 @@ local function gitstatus(file)
     local function toggle_status()
         local line = vim.api.nvim_win_get_cursor(pwin)[1]
         local f = lines[line]:sub(4)
-        local res = git.toggle_status(f)
+        local res = cli.toggle_status(f)
         if res.code ~= 0 then
             warn(table.concat(res.stderr, '\n'))
         end
-        lines = git.status()
+        lines = cli.status()
         update_content(f)
     end
     local function commit()
-        local msg = git.commitmsg()
+        local msg = cli.commitmsg()
         if not msg then
             warn("failed to create commit message")
         elseif #msg == 0 then
@@ -310,7 +310,7 @@ function gitdiff(file)
     local function update_area()
         local hl = area == 1 and "Added" or "Removed"
         vim.api.nvim_set_option_value("statuscolumn", "%#" .. hl .. "#▎ ", { scope = "local", win = pwin })
-        local out = git.diff(file, area == 1)
+        local out = cli.diff(file, area == 1)
         if not out then
             warn("git diff failed")
         end
@@ -329,13 +329,13 @@ function gitdiff(file)
         local sel = diff.selection
         local res
         if area == 2 then
-            res = git.stage(diff:patch_with_selection())
+            res = cli.stage(diff:patch_with_selection())
         else
-            res = git.restore(file)
+            res = cli.restore(file)
             if res.code == 0 then
                 local patch = diff:patch_without_selection()
                 if patch then
-                    res = git.stage(patch)
+                    res = cli.stage(patch)
                 end
             end
         end
@@ -371,7 +371,7 @@ end
 
 local function setup()
     vim.keymap.set('n', ' x', function()
-        if not git.find_root() then
+        if not cli.find_root() then
             warn("Not a git repository")
             return
         end
