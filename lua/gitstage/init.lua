@@ -84,6 +84,7 @@ local function gitcommit(msg)
                     vim.api.nvim_buf_delete(buf, { force = true })
                 end
             end)
+            vim.api.nvim_echo({ { table.concat(res.stdout, "\n") } }, false, {})
         end
     })
 end
