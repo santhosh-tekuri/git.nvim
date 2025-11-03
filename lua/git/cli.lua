@@ -10,6 +10,15 @@ function M.find_root()
     return M.root
 end
 
+function M.find_git()
+    local root = vim.fn.systemlist("git rev-parse --git-dir")
+    if vim.v.shell_error ~= 0 then
+        return nil
+    else
+        return root[1]
+    end
+end
+
 function M.system(cmd)
     local res = vim.system(cmd, { cwd = M.root, text = true }):wait()
     return {
@@ -128,58 +137,19 @@ function M.stage(patch)
     }
 end
 
-function M.commitmsg()
-    local staged = M.system({ "git", "diff", "--staged" })
-    if staged.code ~= 0 then
+function M.commitmsg(flags)
+    local file = M.find_git() .. "/COMMIT_EDITMSG"
+    os.remove(file)
+    local cmd = vim.list_extend({ "git", "commit" }, flags or {})
+    vim.system(cmd, { cwd = M.root, text = true, env = { GIT_EDITOR = "" } }):wait()
+    local f = io.open(file, "r")
+    if not f then
         return nil
+    else
+        local content = f:read("*all")
+        f:close()
+        return vim.split(content, "\n")
     end
-    if #staged.stdout == 0 then
-        return {}
-    end
-    local template = [[Please enter the commit message for your changes. Lines starting
-with '#' will be ignored, and an empty message aborts the commit.]]
-
-    local msg = { "" }
-    for _, line in ipairs(vim.split(template, "\n", { trimempty = true })) do
-        if #line == 0 then
-            table.insert(msg, "#")
-        else
-            table.insert(msg, "# " .. line)
-        end
-    end
-    table.insert(msg, "#")
-    local res = M.system({ "git", "status" })
-    if res.code ~= 0 then
-        return nil
-    end
-
-    local last = res.stdout[#res.stdout]
-    if last:sub(1, #"no changes added to commit") == "no changes added to commit" then
-        table.remove(res.stdout)
-        table.remove(res.stdout)
-    end
-    for _, line in ipairs(res.stdout) do
-        if #line == 0 then
-            table.insert(msg, "#")
-        else
-            table.insert(msg, "# " .. line)
-        end
-    end
-
-    table.insert(msg, "#")
-    local marker = [[------------------------ >8 ------------------------
-Do not modify or remove the line above.
-Everything below it will be ignored.]]
-    for _, line in ipairs(vim.split(marker, "\n", { trimempty = true })) do
-        if #line == 0 then
-            table.insert(msg, "#")
-        else
-            table.insert(msg, "# " .. line)
-        end
-    end
-    vim.list_extend(msg, staged.stdout)
-
-    return msg
 end
 
 function M.commit(msg)
