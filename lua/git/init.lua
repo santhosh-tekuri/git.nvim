@@ -225,6 +225,11 @@ function gitdiff(file)
     vim.api.nvim_set_option_value("signcolumn", "auto", { scope = "local", win = pwin })
     vim.api.nvim_set_option_value("cursorline", false, { scope = "local", win = pwin })
     vim.bo[pbuf].filetype = "diff"
+    vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
+        virt_text = { { file } },
+        virt_text_pos = "right_align",
+        strict = false,
+    })
 
     local closed = false
     local function close()
@@ -265,14 +270,6 @@ function gitdiff(file)
             hl_eol = true,
         })
         vim.api.nvim_win_set_cursor(pwin, { step == 1 and vto or vfrom, 0 })
-
-        local begin, change = unpack(diff:selection_loc())
-        vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
-        vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
-            virt_text = { { file }, { " " .. vfrom .. "," .. vto }, { " " .. begin .. "," .. change } },
-            virt_text_pos = "right_align",
-            strict = false,
-        })
     end
     local function first()
         if diff:empty() then
