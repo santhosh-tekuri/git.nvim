@@ -332,6 +332,10 @@ function gitdiff(file)
             if res.code == 0 then
                 local patch = diff:patch_without_selection()
                 if patch then
+                    local b = file:find(" -> ", 1, true)
+                    if b then
+                        patch = vim.list_extend({}, patch, 6, #patch)
+                    end
                     res = cli.stage(patch)
                 end
             end

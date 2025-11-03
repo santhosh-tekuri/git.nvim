@@ -73,7 +73,26 @@ function M.diff(file, staged)
 end
 
 function M.restore(file)
-    return M.system({ "git", "restore", "--staged", "--", file })
+    local b, e = file:find(" -> ", 1, true)
+    if b then
+        local old, new = file:sub(1, b - 1), file:sub(e + 1)
+        local res = M.system({ "git", "restore", "--staged", "--", new })
+        if res.code ~= 0 then
+            return res
+        end
+        res = M.system({ "git", "restore", "--staged", "--", old })
+        if res.code ~= 0 then
+            return res
+        end
+        return M.stage({
+            "diff --git a/" .. old .. " b/" .. new,
+            "similarity index 100%",
+            "rename from " .. old,
+            "rename to " .. new,
+        })
+    else
+        return M.system({ "git", "restore", "--staged", "--", file })
+    end
 end
 
 function M.toggle_status(file)
