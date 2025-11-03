@@ -33,7 +33,6 @@ local function setup_preview()
         width = vim.o.columns,
         height = vim.o.lines - 1,
         style = 'minimal',
-        focusable = false,
         zindex = 50,
     })
     vim.api.nvim_set_option_value("winhighlight", "Normal:Normal,FloatBorder:Normal", { scope = "local", win = pwin })
@@ -100,7 +99,7 @@ local function gitstatus(file)
         return
     end
 
-    local qbuf, _qwin = setup_query()
+    local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("cursorline", true, { scope = "local", win = pwin })
     local function update_content(f)
@@ -139,12 +138,12 @@ local function gitstatus(file)
             local line = vim.api.nvim_win_get_cursor(pwin)[1]
             selection = lines[line]:sub(4)
         end
-        closed = true
-        vim.api.nvim_buf_delete(qbuf, {})
-        vim.api.nvim_buf_delete(pbuf, {})
         if selection then
             gitdiff(selection)
         end
+        closed = true
+        vim.api.nvim_buf_delete(qbuf, {})
+        vim.api.nvim_buf_delete(pbuf, {})
     end
     local function first()
         vim.api.nvim_win_set_cursor(pwin, { 1, 0 })
@@ -161,10 +160,10 @@ local function gitstatus(file)
         end
         vim.api.nvim_win_set_cursor(pwin, { line, 0 })
     end
-    vim.api.nvim_create_autocmd('WinLeave', {
-        buffer = qbuf,
+    vim.api.nvim_create_autocmd('WinEnter', {
+        buffer = pbuf,
         callback = function()
-            close()
+            vim.api.nvim_set_current_win(qwin)
         end
     })
     local function keymap(lhs, func, args)
@@ -211,7 +210,7 @@ function gitdiff(file)
     local area = 2
     local diff = Diff:new({}, false)
 
-    local qbuf, _qwin = setup_query()
+    local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("signcolumn", "auto", { scope = "local", win = pwin })
     vim.api.nvim_set_option_value("cursorline", false, { scope = "local", win = pwin })
@@ -222,16 +221,15 @@ function gitdiff(file)
         if closed then
             return
         end
+        gitstatus(file)
         closed = true
-
         vim.api.nvim_buf_delete(qbuf, {})
         vim.api.nvim_buf_delete(pbuf, {})
-        gitstatus(file)
     end
-    vim.api.nvim_create_autocmd('WinLeave', {
-        buffer = qbuf,
+    vim.api.nvim_create_autocmd('WinEnter', {
+        buffer = pbuf,
         callback = function()
-            close()
+            vim.api.nvim_set_current_win(qwin)
         end
     })
     local function keymap(lhs, func, args)
