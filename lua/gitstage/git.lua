@@ -20,7 +20,7 @@ function M.system(cmd)
 end
 
 function M.status()
-    local res = M.system { "git", "--no-pager", "status", "-uall", "--porcelain=v1" }
+    local res = M.system { "git", "--no-pager", "status", "-b", "-uall", "--porcelain=v1" }
     return res.code == 0 and res.stdout or nil
 end
 

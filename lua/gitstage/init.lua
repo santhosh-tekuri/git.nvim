@@ -94,7 +94,7 @@ local function gitstatus(file)
         warn("git status failed")
         return
     end
-    if #lines == 0 then
+    if #lines == 1 then
         warn("No changes detected. working tree clean")
         return
     end
@@ -103,6 +103,15 @@ local function gitstatus(file)
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("cursorline", true, { scope = "local", win = pwin })
     local function update_content(f)
+        local branch = lines[1]
+        table.remove(lines, 1)
+        vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
+        vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
+            virt_text = { { branch:sub(3) } },
+            virt_text_pos = "right_align",
+            strict = false,
+        })
+
         vim.api.nvim_buf_clear_namespace(pbuf, ns, 0, -1)
         vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
         if f then
