@@ -93,12 +93,12 @@ function M.restore(file)
         if res.code ~= 0 then
             return res
         end
-        return M.stage({
+        return M.apply({
             "diff --git a/" .. old .. " b/" .. new,
             "similarity index 100%",
             "rename from " .. old,
             "rename to " .. new,
-        })
+        }, { "--cached" })
     else
         return M.system({ "git", "restore", "--staged", "--", file })
     end
