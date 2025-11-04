@@ -42,7 +42,7 @@ end
 
 local gitdiff
 
-local function gitcommit(msg)
+local function gitcommit(flags, msg)
     local buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_name(buf, "COMMIT_EDITMSG")
     vim.bo[buf].filetype = "gitcommit"
@@ -73,7 +73,7 @@ local function gitcommit(msg)
                 end
                 table.insert(m, line)
             end
-            local res = cli.commit(table.concat(m, "\n"))
+            local res = cli.commit(flags, table.concat(m, "\n"))
             if res.code ~= 0 then
                 warn(table.concat(res.stderr, "\n"))
                 return
@@ -191,15 +191,15 @@ local function gitstatus(file)
         lines = cli.status()
         update_content(f)
     end
-    local function commit()
-        local msg = cli.commitmsg()
+    local function commit(flags)
+        local msg = cli.commitmsg(flags)
         if not msg then
             warn("failed to create commit message")
         elseif #msg == 0 then
             warn("nothing to commit")
         else
             close(nil)
-            gitcommit(msg)
+            gitcommit(flags, msg)
         end
     end
     keymap("<esc>", close, { nil })
@@ -213,7 +213,8 @@ local function gitstatus(file)
     keymap("gg", first, {})
     keymap("G", last, {})
     keymap("<space>", toggle_status, {})
-    keymap("c", commit, {})
+    keymap("c", commit, { {} })
+    keymap("A", commit, { { "--amend" } })
 end
 
 function gitdiff(file)

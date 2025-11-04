@@ -152,8 +152,9 @@ function M.commitmsg(flags)
     end
 end
 
-function M.commit(msg)
-    local res = vim.system({ "git", "commit", "-F", "-" }, { cwd = M.root, text = true, stdin = msg }):wait()
+function M.commit(flags, msg)
+    local cmd = vim.list_extend({ "git", "commit" }, flags or {})
+    local res = vim.system(vim.list_extend(cmd, { "-F", "-" }), { cwd = M.root, text = true, stdin = msg }):wait()
     return {
         code = res.code,
         stdout = res.stdout and vim.split(res.stdout, '\n', { trimempty = true }) or {},
