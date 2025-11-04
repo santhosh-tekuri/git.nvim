@@ -121,15 +121,17 @@ function M.toggle_status(file)
     end
 end
 
-function M.stage(patch)
+function M.apply(patch, args)
     table.insert(patch, "")
     patch = table.concat(patch, '\n')
-    local file = io.open("stage.diff", "w")
+    local file = io.open("patch.diff", "w")
     if file then
         file:write(patch)
         file:close()
     end
-    local res = vim.system({ "git", "apply", "--cached", "-" }, { cwd = M.root, text = true, stdin = patch }):wait()
+    local cmd = vim.list_extend({ "git", "apply" }, args or {})
+    cmd = vim.list_extend(cmd, { "-" })
+    local res = vim.system(cmd, { cwd = M.root, text = true, stdin = patch }):wait()
     return {
         code = res.code,
         stdout = res.stdout and vim.split(res.stdout, '\n', { trimempty = true }) or {},

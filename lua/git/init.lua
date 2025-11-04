@@ -320,14 +320,18 @@ function gitdiff(file)
         update_area()
         move(1)
     end
-    local function apply()
+    local function apply(discard)
         if not diff.selection then
             return
         end
         local sel = diff.selection
         local res
         if area == 2 then
-            res = cli.stage(diff:patch_with_selection())
+            if discard then
+                res = cli.apply(diff:patch_with_selection(), { "-R" })
+            else
+                res = cli.apply(diff:patch_with_selection(), { "--cached" })
+            end
         else
             res = cli.restore(file)
             if res.code == 0 then
@@ -337,7 +341,7 @@ function gitdiff(file)
                     if b then
                         patch = vim.list_extend({}, patch, 6, #patch)
                     end
-                    res = cli.stage(patch)
+                    res = cli.apply(patch, { "--cached" })
                 end
             end
         end
@@ -367,6 +371,7 @@ function gitdiff(file)
     keymap("v", toggle_mode, {})
     keymap("<tab>", toggle_area, {})
     keymap("<space>", apply, {})
+    keymap("d", apply, { true })
     update_area()
     move(1)
 end
