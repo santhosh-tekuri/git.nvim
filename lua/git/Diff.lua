@@ -32,7 +32,7 @@ function M:select(step, selection)
     local h = self:header()
     local sel = selection or self.selection or { h + 1, h + 1 }
     local last = step == 1 and #self.lines or h + 2
-    local cur = step == 1 and sel[2] or math.min(sel[1], #self.lines)
+    local cur = step == 1 and sel[2] or math.min(sel[1], #self.lines + 1)
     for i = cur + step, last, step do
         if self:is_change(i) then
             if self.line_mode then

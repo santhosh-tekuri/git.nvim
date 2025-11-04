@@ -283,7 +283,7 @@ function gitdiff(file)
             return
         end
         local c = #diff.lines
-        set_selection(diff:select(-1, { c, c }))
+        set_selection(diff:select(-1, { c + 1, c + 1 }))
     end
     local function move(step)
         if diff:empty() then
@@ -299,7 +299,7 @@ function gitdiff(file)
         end
     end
     local function toggle_mode()
-        if diff:empty() then
+        if diff:empty() or not diff.selection then
             return
         end
         set_selection(diff:toggle_mode())
