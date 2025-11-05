@@ -44,27 +44,31 @@ function M:is_change(line)
     return (ch == '+' or ch == '-') and not self:is_header(line)
 end
 
-function M:file(line)
+function M:header_line(line)
     while not self:is_header(line) do
         line = line - 1
     end
-    vim.print("xxx")
     while true do
-        local a, b = self.lines[line]:match("^diff %-%-git (%S+) (%S+)$")
-        if a then
-            if a:sub(1, 2) == "a/" then
-                a = a:sub(3)
-            end
-            if b:sub(1, 2) == "b/" then
-                b = b:sub(3)
-            end
-            if a == b then
-                return a
-            end
-            return string.format("%s -> %s", a, b)
+        if self.lines[line]:find("^diff %-%-git ") then
+            return line
         end
         line = line - 1
     end
+end
+
+function M:file(line)
+    line = self:header_line(line)
+    local a, b = self.lines[line]:match("^diff %-%-git (%S+) (%S+)$")
+    if a:sub(1, 2) == "a/" then
+        a = a:sub(3)
+    end
+    if b:sub(1, 2) == "b/" then
+        b = b:sub(3)
+    end
+    if a == b then
+        return a
+    end
+    return string.format("%s -> %s", a, b)
 end
 
 function M:select(step, selection)
