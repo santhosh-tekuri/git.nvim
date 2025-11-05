@@ -320,10 +320,15 @@ function gitdiff(file)
         local sel = diff:select(step)
         if sel then
             set_selection(sel, step)
-        elseif step == 1 then
-            first()
-        else
-            last()
+        end
+    end
+    local function move_file(step)
+        if diff:empty() then
+            return
+        end
+        local sel = diff:select_file(step)
+        if sel then
+            set_selection(sel, step)
         end
     end
     local function toggle_mode()
@@ -424,6 +429,8 @@ function gitdiff(file)
     keymap("<down>", move, { 1 })
     keymap("k", move, { -1 })
     keymap("<up>", move, { -1 })
+    keymap("J", move_file, { 1 })
+    keymap("K", move_file, { -1 })
     keymap("gg", first, {})
     keymap("G", last, {})
     keymap("v", toggle_mode, {})
