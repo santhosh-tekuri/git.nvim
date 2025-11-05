@@ -332,13 +332,30 @@ function gitdiff(file)
         end
         set_selection(diff:toggle_mode())
     end
-    local function update_area()
+    local function update_area(partial)
         local stc = "%!v:lua.StatusColumn" .. area .. "()"
         vim.api.nvim_set_option_value("statuscolumn", stc, { scope = "local", win = pwin })
-        local out = cli.diff(file, area == 1)
-        if not out then
-            warn("git diff failed")
+        local out
+        if partial then
+            local hb, _, e = diff:bounds(diff.selection[1])
+            local f = diff:file(hb)
+            local d = cli.diff(f, area == 1)
+            if not d then
+                warn("git diff failed")
+                return
+            end
+            out = {}
+            vim.list_extend(out, diff.lines, 1, hb - 1)
+            vim.list_extend(out, d)
+            vim.list_extend(out, diff.lines, e + 1, #diff.lines)
+        else
+            out = cli.diff(file, area == 1)
+            if not out then
+                warn("git diff failed")
+                return
+            end
         end
+
         diff = Diff:new(out and out or {}, diff.line_mode)
         vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, diff.lines)
 
@@ -389,7 +406,7 @@ function gitdiff(file)
         if res.code ~= 0 then
             warn(table.concat(res.stderr, '\n'))
         else
-            update_area()
+            update_area(true)
             local s = diff:select(1, { sel[1] - 1, sel[1] - 1 })
             if not s then
                 s = diff:select(-1, { sel[1], sel[1] })
