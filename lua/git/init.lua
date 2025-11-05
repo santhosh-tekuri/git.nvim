@@ -373,11 +373,12 @@ function gitdiff(file)
                 res = cli.apply(diff:patch_with_selection(), { "--cached" })
             end
         else
-            res = cli.restore(file)
+            local f = diff:file(diff.selection[1])
+            res = cli.restore(f)
             if res.code == 0 then
                 local patch = diff:patch_without_selection()
                 if patch then
-                    local b = file:find(" -> ", 1, true)
+                    local b = f:find(" -> ", 1, true)
                     if b then
                         patch = vim.list_extend({}, patch, 6, #patch)
                     end

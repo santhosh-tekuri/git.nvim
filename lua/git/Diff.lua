@@ -11,6 +11,35 @@ function M:empty()
     return #self.lines == 0
 end
 
+function M:is_begin(line)
+    return self.lines[line]:find("^diff %-%-git ") and true or false
+end
+
+function M:is_hunk(line)
+    return self.lines[line]:find("^@@ ") and true or false
+end
+
+function M:bounds(line)
+    local hb = line
+    while not self:is_begin(hb) do
+        hb = hb - 1
+    end
+    local he, e
+    for i = hb + 1, #self.lines do
+        if not he and self:is_hunk(i) then
+            he = i - 1
+        end
+        if self:is_begin(i) then
+            e = i - 1
+            if not he then
+                he = e
+            end
+            break
+        end
+    end
+    return hb, he or #self.lines, e or #self.lines
+end
+
 function M:is_header(i)
     local line = self.lines[i]
     local ch = line:sub(1, 1)
@@ -44,20 +73,10 @@ function M:is_change(line)
     return (ch == '+' or ch == '-') and not self:is_header(line)
 end
 
-function M:header_line(line)
-    while not self:is_header(line) do
-        line = line - 1
-    end
-    while true do
-        if self.lines[line]:find("^diff %-%-git ") then
-            return line
-        end
-        line = line - 1
-    end
-end
-
 function M:file(line)
-    line = self:header_line(line)
+    while not self:is_begin(line) do
+        line = line - 1
+    end
     local a, b = self.lines[line]:match("^diff %-%-git (%S+) (%S+)$")
     if a:sub(1, 2) == "a/" then
         a = a:sub(3)
@@ -177,23 +196,24 @@ end
 function M:patch_with_selection()
     local patch = {}
 
+    local from, to = unpack(self.selection)
+    local hb, he, e = self:bounds(from)
+
     -- add header
-    local h = self:header()
-    for i = 1, h do
+    for i = hb, he do
         table.insert(patch, self.lines[i])
     end
 
     -- locate hunk start
-    local from, to = unpack(self.selection)
     local i = from - 1
-    while self.lines[i]:sub(1, 1) ~= '@' do
+    while not self:is_hunk(i) do
         i = i - 1
     end
 
     table.insert(patch, self.lines[i])
     i = i + 1
     local olen, nlen = 0, 0
-    while i <= #self.lines and self.lines[i]:sub(1, 1) ~= '@' do
+    while i <= e and not self:is_hunk(i) do
         local ch = self.lines[i]:sub(1, 1)
         if i >= from and i <= to then
             table.insert(patch, self.lines[i])
@@ -218,31 +238,33 @@ function M:patch_with_selection()
         i = i + 1
     end
 
-    local range = parse_hunk_range(patch[h + 1])
+    local hunk = he - hb + 2
+    local range = parse_hunk_range(patch[hunk])
     range.old[2] = olen
     range.new[2] = nlen
-    patch[h + 1] = hunk_range_line(range)
+    patch[hunk] = hunk_range_line(range)
     return patch
 end
 
 function M:patch_without_selection()
     local patch = {}
 
+    local from, to = unpack(self.selection)
+    local hb, he, e = self:bounds(from)
+
     -- add header
-    local h = self:header()
-    for i = 1, h do
+    for i = hb, he do
         table.insert(patch, self.lines[i])
     end
 
     -- locate hunk start
-    local from, to = unpack(self.selection)
     local i = from - 1
-    while self.lines[i]:sub(1, 1) ~= '@' do
+    while not self:is_hunk(i) do
         i = i - 1
     end
 
     -- add hunks before selection
-    for j = h + 1, i - 1 do
+    for j = he + 1, i - 1 do
         local line = self.lines[j]
         table.insert(patch, line)
     end
@@ -250,7 +272,7 @@ function M:patch_without_selection()
     local hunk = { self.lines[i] }
     i = i + 1
     local olen, nlen, changes = 0, 0, false
-    while i <= #self.lines and self.lines[i]:sub(1, 1) ~= '@' do
+    while i <= e and not self:is_hunk(i) do
         local ch = self.lines[i]:sub(1, 1)
         if i >= from and i <= to then
             local line
@@ -284,12 +306,12 @@ function M:patch_without_selection()
     end
 
     -- add hunks after selection
-    for j = i, #self.lines do
+    for j = i, e do
         local line = self.lines[j]
         table.insert(patch, line)
     end
 
-    return #patch > h and patch or nil
+    return #patch > he - hb + 1 and patch or nil
 end
 
 return M
