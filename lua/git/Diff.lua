@@ -11,6 +11,25 @@ function M:empty()
     return #self.lines == 0
 end
 
+function M:is_header(i)
+    local line = self.lines[i]
+    local ch = line:sub(1, 1)
+    if ch == "@" then
+        return false
+    end
+    if ch == "+" or ch == '-' then
+        for j = i - 1, 1, -1 do
+            ch = self.lines[j]:sub(1, 1)
+            if ch == "@" then
+                return false
+            elseif ch == "d" then
+                return true
+            end
+        end
+    end
+    assert(false)
+end
+
 function M:header()
     for i, line in ipairs(self.lines) do
         if line:sub(1, 4) == "@@ -" then
@@ -22,7 +41,7 @@ end
 
 function M:is_change(line)
     local ch = self.lines[line]:sub(1, 1)
-    return ch == '+' or ch == '-'
+    return (ch == '+' or ch == '-') and not self:is_header(line)
 end
 
 function M:select(step, selection)
