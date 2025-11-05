@@ -46,6 +46,25 @@ function M.status_file(file)
 end
 
 function M.diff(file, staged)
+    if not file then
+        local status = M.status()
+        if not status then
+            vim.print("git status failed")
+            return nil
+        end
+        local diff = {}
+        for i, line in ipairs(status) do
+            if i > 1 then
+                local d = M.diff(line:sub(4), staged)
+                if not d then
+                    vim.print("diff " .. line:sub(3) .. " failed")
+                    return nil
+                end
+                vim.list_extend(diff, d)
+            end
+        end
+        return diff
+    end
     local entry = M.status_file(file)
     if not entry then
         return nil

@@ -2,6 +2,7 @@ local cli = require("git.cli")
 local Diff = require("git.Diff")
 
 local ns = vim.api.nvim_create_namespace("gitstage")
+local ns_sep = vim.api.nvim_create_namespace("gitstage_sep")
 
 local function warn(msg)
     vim.api.nvim_echo({ { "\n" .. msg, "WarningMsg" } }, false, {})
@@ -139,17 +140,17 @@ local function gitstatus(file)
     update_content(file)
 
     local closed = false
-    local function close(accept)
+    local function close(accept, selection)
         if closed then
             return
         end
-        local selection = nil
-        if accept then
+        local arg
+        if accept and selection then
             local line = vim.api.nvim_win_get_cursor(pwin)[1]
-            selection = lines[line]:sub(4)
+            arg = lines[line]:sub(4)
         end
-        if selection then
-            gitdiff(selection)
+        if accept then
+            gitdiff(arg)
         end
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
@@ -204,8 +205,9 @@ local function gitstatus(file)
     end
     keymap("<esc>", close, { nil })
     keymap("q", close, { nil })
-    keymap("o", close, { true })
-    keymap("<cr>", close, { true })
+    keymap("o", close, { true, true })
+    keymap("O", close, { true, false })
+    keymap("<cr>", close, { true, true })
     keymap("j", move, { 1 })
     keymap("<down>", move, { 1 })
     keymap("k", move, { -1 })
@@ -217,6 +219,20 @@ local function gitstatus(file)
     keymap("A", commit, { { "--amend" } })
 end
 
+function StatusColumn1()
+    if vim.v.virtnum < 0 then
+        return "  "
+    end
+    return "%#Added#▎ "
+end
+
+function StatusColumn2()
+    if vim.v.virtnum < 0 then
+        return "  "
+    end
+    return "%#Removed#▎ "
+end
+
 function gitdiff(file)
     local area = 2
     local diff = Diff:new({}, false)
@@ -226,11 +242,13 @@ function gitdiff(file)
     vim.api.nvim_set_option_value("signcolumn", "auto", { scope = "local", win = pwin })
     vim.api.nvim_set_option_value("cursorline", false, { scope = "local", win = pwin })
     vim.bo[pbuf].filetype = "diff"
-    vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
-        virt_text = { { file } },
-        virt_text_pos = "right_align",
-        strict = false,
-    })
+    if file then
+        vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
+            virt_text = { { file } },
+            virt_text_pos = "right_align",
+            strict = false,
+        })
+    end
 
     local closed = false
     local function close()
@@ -306,14 +324,27 @@ function gitdiff(file)
         set_selection(diff:toggle_mode())
     end
     local function update_area()
-        local hl = area == 1 and "Added" or "Removed"
-        vim.api.nvim_set_option_value("statuscolumn", "%#" .. hl .. "#▎ ", { scope = "local", win = pwin })
+        local stc = "%!v:lua.StatusColumn" .. area .. "()"
+        vim.api.nvim_set_option_value("statuscolumn", stc, { scope = "local", win = pwin })
         local out = cli.diff(file, area == 1)
         if not out then
             warn("git diff failed")
         end
         diff = Diff:new(out and out or {}, diff.line_mode)
         vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, diff.lines)
+
+        vim.api.nvim_buf_clear_namespace(pbuf, ns_sep, 0, -1)
+        for i, line in ipairs(diff.lines) do
+            if i > 1 and line:find("^diff %-%-git ") then
+                local emptyline = { { string.rep(" ", vim.o.columns) } }
+                vim.api.nvim_buf_set_extmark(pbuf, ns_sep, i - 1, 0, {
+                    virt_lines = { emptyline, emptyline },
+                    virt_lines_above = true,
+                    end_row = i - 1,
+                    strict = false,
+                })
+            end
+        end
     end
     local function toggle_area()
         area = area == 1 and 2 or 1
@@ -374,6 +405,19 @@ function gitdiff(file)
     keymap("d", apply, { true })
     update_area()
     move(1)
+end
+
+local function pick_commit()
+    local function line2item(line)
+        local sp = line:find(" ", 1, true)
+        if sp then
+            return { hash = line:sub(1, sp - 1), msg = line:sub(sp + 1) }
+        end
+        return { msg = line }
+    end
+    local function log(on_list, opts)
+        -- picker.cmd_items("git", )
+    end
 end
 
 local function setup()
