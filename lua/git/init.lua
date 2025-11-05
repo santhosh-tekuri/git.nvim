@@ -242,12 +242,17 @@ function gitdiff(file)
     vim.api.nvim_set_option_value("signcolumn", "auto", { scope = "local", win = pwin })
     vim.api.nvim_set_option_value("cursorline", false, { scope = "local", win = pwin })
     vim.bo[pbuf].filetype = "diff"
-    if file then
+
+    local function set_filemark(f)
+        vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
         vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
-            virt_text = { { file } },
+            virt_text = { { f } },
             virt_text_pos = "right_align",
             strict = false,
         })
+    end
+    if file then
+        set_filemark(file)
     end
 
     local closed = false
@@ -279,6 +284,10 @@ function gitdiff(file)
                 end)
             end
             return
+        end
+        if not file then
+            vim.print(diff:is_header(dselection[1]))
+            set_filemark(diff:file(dselection[1]))
         end
         local vfrom, vto = unpack(dselection)
         vim.api.nvim_buf_clear_namespace(pbuf, ns, 0, -1)

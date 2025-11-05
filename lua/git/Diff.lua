@@ -14,7 +14,7 @@ end
 function M:is_header(i)
     local line = self.lines[i]
     local ch = line:sub(1, 1)
-    if ch == "@" then
+    if ch == "@" or ch == " " then
         return false
     end
     if ch == "+" or ch == '-' then
@@ -27,7 +27,7 @@ function M:is_header(i)
             end
         end
     end
-    assert(false)
+    return true
 end
 
 function M:header()
@@ -42,6 +42,29 @@ end
 function M:is_change(line)
     local ch = self.lines[line]:sub(1, 1)
     return (ch == '+' or ch == '-') and not self:is_header(line)
+end
+
+function M:file(line)
+    while not self:is_header(line) do
+        line = line - 1
+    end
+    vim.print("xxx")
+    while true do
+        local a, b = self.lines[line]:match("^diff %-%-git (%S+) (%S+)$")
+        if a then
+            if a:sub(1, 2) == "a/" then
+                a = a:sub(3)
+            end
+            if b:sub(1, 2) == "b/" then
+                b = b:sub(3)
+            end
+            if a == b then
+                return a
+            end
+            return string.format("%s -> %s", a, b)
+        end
+        line = line - 1
+    end
 end
 
 function M:select(step, selection)
