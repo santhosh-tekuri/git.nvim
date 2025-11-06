@@ -214,7 +214,7 @@ local function hunk_range_line(hunk)
     return s
 end
 
-function M:patch_with_selection()
+function M:patch_with_selection(discard)
     local patch = {}
 
     local from, to = unpack(self.selection)
@@ -234,6 +234,7 @@ function M:patch_with_selection()
     table.insert(patch, self.lines[i])
     i = i + 1
     local olen, nlen = 0, 0
+    local dch = discard and '+' or '-'
     while i <= e and not self:is_hunk(i) do
         local ch = self.lines[i]:sub(1, 1)
         if i >= from and i <= to then
@@ -247,7 +248,7 @@ function M:patch_with_selection()
             local line
             if ch == ' ' then
                 line = self.lines[i]
-            elseif ch == '-' then
+            elseif ch == dch then
                 line = ' ' .. self.lines[i]:sub(2)
             end
             if line then

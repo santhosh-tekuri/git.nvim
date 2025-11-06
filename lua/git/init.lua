@@ -403,7 +403,7 @@ function gitdiff(file)
         local res
         if area == 2 then
             if discard then
-                res = cli.apply(diff:patch_with_selection(), { "-R" })
+                res = cli.apply(diff:patch_with_selection(true), { "-R" })
             else
                 res = cli.apply(diff:patch_with_selection(), { "--cached" })
             end
