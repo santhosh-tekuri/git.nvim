@@ -61,6 +61,7 @@ function M.diff(file, staged)
         end
         return diff
     end
+
     local entry = M.status_file(file)
     if not entry then
         return nil
