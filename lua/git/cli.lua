@@ -19,9 +19,11 @@ function M.find_git()
     end
 end
 
-function M.system(cmd)
-    local res = vim.system(cmd, { cwd = M.root, text = true }):wait()
+function M.system(cmd, options)
+    options = vim.tbl_deep_extend('force', { cwd = M.root, text = true }, options or {})
+    local res = vim.system(cmd, options):wait()
     return {
+        ok = res.code == 0,
         code = res.code,
         stdout = res.stdout and vim.split(res.stdout, '\n', { trimempty = true }) or {},
         stderr = res.stderr and vim.split(res.stderr, '\n', { trimempty = true }) or {},
@@ -150,19 +152,14 @@ function M.apply(patch, args)
     end
     local cmd = vim.list_extend({ "git", "apply" }, args or {})
     cmd = vim.list_extend(cmd, { "-" })
-    local res = vim.system(cmd, { cwd = M.root, text = true, stdin = patch }):wait()
-    return {
-        code = res.code,
-        stdout = res.stdout and vim.split(res.stdout, '\n', { trimempty = true }) or {},
-        stderr = res.stderr and vim.split(res.stderr, '\n', { trimempty = true }) or {},
-    }
+    return M.system(cmd, { stdin = patch })
 end
 
 function M.commitmsg(flags)
     local file = M.find_git() .. "/COMMIT_EDITMSG"
     os.remove(file)
     local cmd = vim.list_extend({ "git", "commit" }, flags or {})
-    vim.system(cmd, { cwd = M.root, text = true, env = { GIT_EDITOR = "" } }):wait()
+    M.system(cmd, { env = { GIT_EDITOR = "" } })
     local f = io.open(file, "r")
     if not f then
         return nil
@@ -175,12 +172,8 @@ end
 
 function M.commit(flags, msg)
     local cmd = vim.list_extend({ "git", "commit" }, flags or {})
-    local res = vim.system(vim.list_extend(cmd, { "-F", "-" }), { cwd = M.root, text = true, stdin = msg }):wait()
-    return {
-        code = res.code,
-        stdout = res.stdout and vim.split(res.stdout, '\n', { trimempty = true }) or {},
-        stderr = res.stderr and vim.split(res.stderr, '\n', { trimempty = true }) or {},
-    }
+    cmd = vim.list_extend(cmd, { "-F", "-" })
+    return M.system(cmd, { stdin = msg })
 end
 
 return M
