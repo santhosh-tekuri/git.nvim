@@ -8,6 +8,11 @@ local function warn(msg)
     vim.api.nvim_echo({ { "\n" .. msg, "WarningMsg" } }, false, {})
 end
 
+local function warn_res(msg, res)
+    msg = "\n" .. msg .. "\n" .. table.concat(res.stderr, "\n")
+    vim.api.nvim_echo({ { msg, "WarningMsg" } }, false, {})
+end
+
 local function setup_query()
     local qbuf = vim.api.nvim_create_buf(false, true)
     vim.b[qbuf].completion = false
@@ -469,7 +474,12 @@ end
 
 local function setup()
     vim.keymap.set('n', ' x', function()
-        if not cli.find_root() then
+        local res = cli.init()
+        if not res.ok then
+            warn_res("find root failed", res)
+            return
+        end
+        if not cli.root then
             warn("Not a git repository")
             return
         end

@@ -1,24 +1,5 @@
 local M = {}
 
-function M.find_root()
-    local root = vim.fn.systemlist("git rev-parse --show-toplevel")
-    if vim.v.shell_error ~= 0 then
-        M.root = nil
-    else
-        M.root = root[1]
-    end
-    return M.root
-end
-
-function M.find_git()
-    local root = vim.fn.systemlist("git rev-parse --git-dir")
-    if vim.v.shell_error ~= 0 then
-        return nil
-    else
-        return root[1]
-    end
-end
-
 function M.system(cmd, options)
     options = vim.tbl_deep_extend('force', { cwd = M.root, text = true }, options or {})
     local res = vim.system(cmd, options):wait()
@@ -28,6 +9,23 @@ function M.system(cmd, options)
         stdout = res.stdout and vim.split(res.stdout, '\n', { trimempty = true }) or {},
         stderr = res.stderr and vim.split(res.stderr, '\n', { trimempty = true }) or {},
     }
+end
+
+function M.init()
+    local res = M.system({ "git", "rev-parse", "--show-toplevel" })
+    if res.ok then
+        M.root = res.stdout[1]
+    end
+    return res
+end
+
+function M.find_git()
+    local root = vim.fn.systemlist("git rev-parse --git-dir")
+    if vim.v.shell_error ~= 0 then
+        return nil
+    else
+        return root[1]
+    end
 end
 
 function M.status()
