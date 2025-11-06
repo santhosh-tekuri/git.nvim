@@ -276,6 +276,18 @@ function gitdiff(file)
             func(unpack(args or {}))
         end, { buffer = qbuf, nowait = true })
     end
+    local function make_header_visible()
+        local sb, se = unpack(diff.selection)
+        local hb = diff:hb(sb)
+        local info = vim.fn.getwininfo(pwin)[1]
+        local top, bot = info.topline, info.botline
+        local scroll = math.min(top - hb, bot - se)
+        if scroll > 0 then
+            vim.api.nvim_win_call(pwin, function()
+                vim.cmd("normal! " .. scroll .. "")
+            end)
+        end
+    end
     local function set_selection(dselection, step)
         if not dselection then
             if step == -1 then
@@ -298,6 +310,7 @@ function gitdiff(file)
             hl_eol = true,
         })
         vim.api.nvim_win_set_cursor(pwin, { step == 1 and vto or vfrom, 0 })
+        make_header_visible()
     end
     local function first()
         if diff:empty() then
