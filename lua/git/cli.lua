@@ -20,12 +20,8 @@ function M.init()
 end
 
 function M.find_git()
-    local root = vim.fn.systemlist("git rev-parse --git-dir")
-    if vim.v.shell_error ~= 0 then
-        return nil
-    else
-        return root[1]
-    end
+    local res = M.system({ "git", "rev-parse", "--git-dir" })
+    return res.ok and res.stdout[1] or nil
 end
 
 function M.status()
