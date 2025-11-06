@@ -19,11 +19,16 @@ function M:is_hunk(line)
     return self.lines[line]:find("^@@ ") and true or false
 end
 
-function M:bounds(line)
-    local hb = line
-    while not self:is_begin(hb) do
-        hb = hb - 1
+function M:hb(line)
+    for i = line, 1, -1 do
+        if self:is_begin(i) then
+            return i
+        end
     end
+end
+
+function M:bounds(line)
+    local hb = self:hb(line)
     local he, e
     for i = hb + 1, #self.lines do
         if not he and self:is_hunk(i) then
@@ -88,6 +93,22 @@ function M:file(line)
         return a
     end
     return string.format("%s -> %s", a, b)
+end
+
+function M:select_file(step)
+    local line = self.selection[1]
+    if step == -1 then
+        while not self:is_begin(line) do
+            line = line - 1
+        end
+        line = line - 1
+    end
+    local last = step == 1 and #self.lines or 1
+    for i = line, last, step do
+        if self:is_begin(i) then
+            return self:select(1, { i, i })
+        end
+    end
 end
 
 function M:select(step, selection)
