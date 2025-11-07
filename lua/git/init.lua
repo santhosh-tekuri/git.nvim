@@ -95,6 +95,12 @@ local function gitcommit(flags, msg)
     })
 end
 
+local function pick_commit(on_close)
+    require("picker").pick_git_commit(function(item)
+        on_close(item and item.hash or nil)
+    end)
+end
+
 local function gitstatus(file)
     local lines = cli.status()
     if not lines then
@@ -208,6 +214,13 @@ local function gitstatus(file)
             gitcommit(flags, msg)
         end
     end
+    local function fixup(flag)
+        pick_commit(function(hash)
+            if hash then
+                commit({ flag .. hash })
+            end
+        end)
+    end
     keymap("<esc>", close, { nil })
     keymap("q", close, { nil })
     keymap("o", close, { true, true })
@@ -220,8 +233,11 @@ local function gitstatus(file)
     keymap("gg", first, {})
     keymap("G", last, {})
     keymap("<space>", toggle_status, {})
-    keymap("c", commit, { {} })
-    keymap("A", commit, { { "--amend" } })
+    keymap("cc", commit, { {} })
+    keymap("ca", commit, { { "--amend" } })
+    keymap("ff", fixup, { "--fixup=" })
+    keymap("fa", fixup, { "--fixup=amend:" })
+    keymap("fr", fixup, { "--fixup:reword:" })
 end
 
 function StatusColumn1()
@@ -457,19 +473,6 @@ function gitdiff(file)
     keymap("d", apply, { true })
     update_area()
     move(1)
-end
-
-local function pick_commit()
-    local function line2item(line)
-        local sp = line:find(" ", 1, true)
-        if sp then
-            return { hash = line:sub(1, sp - 1), msg = line:sub(sp + 1) }
-        end
-        return { msg = line }
-    end
-    local function log(on_list, opts)
-        -- picker.cmd_items("git", )
-    end
 end
 
 local function setup()
