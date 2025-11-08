@@ -66,7 +66,7 @@ function M.diff(file, staged)
 
     local entry = M.status_file(file)
     if not entry then
-        return { code = 1, ok = false, stdout = {}, stderr = { "the file " .. file .. " is clean" } }
+        return { code = 0, ok = true, stdout = {}, stderr = {} }
     end
 
     local cmd = { "git", "--no-pager", "diff" }
