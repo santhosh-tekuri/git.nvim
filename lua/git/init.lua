@@ -453,6 +453,9 @@ function gitdiff(file)
         local res
         if area == 2 then
             if discard then
+                if vim.fn.confirm("Are you sure you want to discard this change? It is irreversible.", "&Yes\n&No", 2) ~= 1 then
+                    return
+                end
                 res = cli.apply(diff:patch_with_selection(true), { "-R" })
             else
                 res = cli.apply(diff:patch_with_selection(), { "--cached" })
