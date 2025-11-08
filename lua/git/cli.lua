@@ -150,25 +150,17 @@ function M.apply(patch, args)
     return M.system(cmd, { stdin = patch })
 end
 
-function M.commitmsg(flags)
-    local file = M.find_git() .. "/COMMIT_EDITMSG"
-    os.remove(file)
+function M.commit(flags)
     local cmd = vim.list_extend({ "git", "commit" }, flags or {})
-    M.system(cmd, { env = { GIT_EDITOR = "" } })
-    local f = io.open(file, "r")
-    if not f then
-        return nil
-    else
-        local content = f:read("*all")
-        f:close()
-        return vim.split(content, "\n")
-    end
-end
-
-function M.commit(flags, msg)
-    local cmd = vim.list_extend({ "git", "commit" }, flags or {})
-    cmd = vim.list_extend(cmd, { "-F", "-" })
-    return M.system(cmd, { stdin = msg })
+    local editor = vim.api.nvim_get_runtime_file("git_editor.sh", false)[1]
+    local opts = {}
+    opts = { text = true, env = { GIT_EDITOR = editor .. " " .. vim.v.servername } }
+    vim.system(cmd, opts, function(res)
+        local msg = res.code == 0 and res.stdout or res.stderr
+        if msg and not msg:find("^error: There was a problem with the editor ") then
+            vim.schedule_wrap(vim.api.nvim_echo)({ { msg } }, false, {})
+        end
+    end)
 end
 
 return M

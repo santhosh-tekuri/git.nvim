@@ -48,7 +48,16 @@ end
 
 local gitdiff
 
-local function gitcommit(flags, msg)
+local function gitcommit(data)
+    local f = io.open(data.file, "r")
+    if not f then
+        warn("failed to open file " .. data.file)
+        return
+    end
+    local content = f:read("*all")
+    f:close()
+    local msg = vim.split(content, "\n")
+
     local buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_name(buf, "COMMIT_EDITMSG")
     vim.bo[buf].filetype = "gitcommit"
@@ -68,29 +77,49 @@ local function gitcommit(flags, msg)
     })
     vim.api.nvim_set_option_value("winhighlight", "Normal:Normal,FloatBorder:Normal", { scope = "local", win = win })
     vim.api.nvim_set_option_value("wrap", false, { scope = "local", win = win })
+    local ignore_close = false
     vim.api.nvim_create_autocmd("BufWriteCmd", {
         buffer = buf,
         callback = function()
             local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-            local m = {}
-            for _, line in ipairs(lines) do
-                if line:sub(1, 1) == "#" then
-                    break
-                end
-                table.insert(m, line)
-            end
-            local res = cli.commit(flags, table.concat(m, "\n"))
-            if res.code ~= 0 then
-                warn(table.concat(res.stderr, "\n"))
+            table.insert(lines, "")
+            local file = io.open(data.file, "w")
+            if not file then
+                warn("failed to write file " .. data.file)
                 return
             end
+            file:write(table.concat(lines, "\n"))
+            file:close()
+
+            file = io.open(data.pipe, "w")
+            if not file then
+                warn("failed to write pipe " .. data.pipe)
+                return
+            end
+            file:write("0")
+            file:close()
+            ignore_close = true
             vim.bo.modified = false
             vim.schedule(function()
                 if vim.api.nvim_buf_is_valid(buf) then
                     vim.api.nvim_buf_delete(buf, { force = true })
                 end
             end)
-            vim.api.nvim_echo({ { table.concat(res.stdout, "\n") } }, false, {})
+        end
+    })
+    vim.api.nvim_create_autocmd("WinClosed", {
+        pattern = tostring(win),
+        callback = function()
+            if ignore_close then
+                return
+            end
+            local file = io.open(data.pipe, "w")
+            if not file then
+                warn("failed to write pipe " .. data.pipe)
+                return
+            end
+            file:write("1")
+            file:close()
         end
     })
 end
@@ -204,15 +233,8 @@ local function gitstatus(file)
         update_content(f)
     end
     local function commit(flags)
-        local msg = cli.commitmsg(flags)
-        if not msg then
-            warn("failed to create commit message")
-        elseif #msg == 0 then
-            warn("nothing to commit")
-        else
-            close(nil)
-            gitcommit(flags, msg)
-        end
+        close(nil)
+        cli.commit(flags)
     end
     local function fixup(flag)
         pick_commit(function(hash)
@@ -237,7 +259,7 @@ local function gitstatus(file)
     keymap("ca", commit, { { "--amend" } })
     keymap("ff", fixup, { "--fixup=" })
     keymap("fa", fixup, { "--fixup=amend:" })
-    keymap("fr", fixup, { "--fixup:reword:" })
+    keymap("fr", fixup, { "--fixup=reword:" })
 end
 
 function StatusColumn1()
@@ -474,6 +496,14 @@ function gitdiff(file)
     update_area()
     move(1)
 end
+
+vim.api.nvim_create_autocmd("User", {
+    group = vim.api.nvim_create_augroup("GitCommit", {}),
+    pattern = "GitCommit",
+    callback = function(args)
+        gitcommit(args.data)
+    end,
+})
 
 local function setup()
     vim.keymap.set('n', ' x', function()
