@@ -233,23 +233,33 @@ local function gitstatus(file)
         lines = cli.status()
         update_content(f)
     end
-    local function commit(flags)
+    local function commit(flags, do_close)
         if #flags == 0 and cli.is_stage_empty() then
             if vim.fn.confirm("No changes added to commit.\nDo you want to create empty commit?", "&Yes\n&No", 2) ~= 1 then
                 return
             end
             flags = { "--allow-empty" }
         end
-        close(nil)
+        if do_close then
+            close(nil)
+        end
         cli.commit(flags)
     end
     local function fixup(flag)
         pick_commit(function(hash)
             if hash then
-                commit({ flag .. hash })
+                commit({ flag .. hash }, flag == "fixup=")
             end
         end)
     end
+    vim.api.nvim_create_autocmd("User", {
+        group = vim.api.nvim_create_augroup("GitCommit", {}),
+        pattern = "GitCommit",
+        callback = function(args)
+            gitcommit(args.data)
+            close(nil)
+        end,
+    })
     keymap("<esc>", close, { nil })
     keymap("q", close, { nil })
     keymap("o", close, { true, true })
@@ -506,14 +516,6 @@ function gitdiff(file)
     update_area()
     move(1)
 end
-
-vim.api.nvim_create_autocmd("User", {
-    group = vim.api.nvim_create_augroup("GitCommit", {}),
-    pattern = "GitCommit",
-    callback = function(args)
-        gitcommit(args.data)
-    end,
-})
 
 local function setup()
     vim.keymap.set('n', ' x', function()
