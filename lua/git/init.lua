@@ -25,6 +25,7 @@ local function setup_query()
         style = "minimal",
         zindex = 200,
     })
+    vim.bo[qbuf].modifiable = false
     vim.api.nvim_set_option_value("statuscolumn", ":", { scope = "local", win = qwin })
     vim.api.nvim_set_option_value("winhighlight", "NormalFloat:MsgArea", { scope = "local", win = qwin })
     return qbuf, qwin
