@@ -418,20 +418,21 @@ function gitdiff(file)
             local hb, _, e = diff:bounds(diff.selection[1])
             local f = diff:file(hb)
             local d = cli.diff(f, area == 1)
-            if not d then
-                warn("git diff failed")
+            if not d.ok then
+                warn_res("git diff failed", d)
                 return
             end
             out = {}
             vim.list_extend(out, diff.lines, 1, hb - 1)
-            vim.list_extend(out, d)
+            vim.list_extend(out, d.stdout)
             vim.list_extend(out, diff.lines, e + 1, #diff.lines)
         else
-            out = cli.diff(file, area == 1)
-            if not out then
-                warn("git diff failed")
+            local res = cli.diff(file, area == 1)
+            if not res.ok then
+                warn_res("git diff failed", res)
                 return
             end
+            out = res.stdout
         end
 
         diff = Diff:new(out and out or {}, diff.line_mode)

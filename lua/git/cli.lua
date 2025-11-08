@@ -49,27 +49,26 @@ function M.diff(file, staged)
     if not file then
         local status = M.status()
         if not status then
-            vim.print("git status failed")
-            return nil
+            return { ok = false, code = 1, stdout = {}, stderr = { "git status failed" } }
         end
         local diff = {}
         for i, line in ipairs(status) do
             if i > 1 then
                 local d = M.diff(line:sub(4), staged)
-                if not d then
-                    vim.print("diff " .. line:sub(3) .. " failed")
-                    return nil
+                if not d.ok then
+                    return d
                 end
-                vim.list_extend(diff, d)
+                vim.list_extend(diff, d.stdout)
             end
         end
-        return diff
+        return { ok = true, code = 0, stdout = diff, stderr = {} }
     end
 
     local entry = M.status_file(file)
     if not entry then
-        return nil
+        return { code = 1, ok = false, stdout = {}, stderr = { "the file " .. file .. " is clean" } }
     end
+
     local cmd = { "git", "--no-pager", "diff" }
     local function add_file(f)
         local b, e = f:find(" -> ", 1, true)
@@ -82,8 +81,7 @@ function M.diff(file, staged)
     if staged then
         table.insert(cmd, "--staged")
         add_file(file)
-        local res = M.system(cmd)
-        return res.code == 0 and res.stdout or nil
+        return M.system(cmd)
     else
         local status = entry:sub(2, 2)
         local untracked = status == '?'
@@ -96,8 +94,9 @@ function M.diff(file, staged)
         local res = M.system(cmd)
         if untracked then
             res.code = res.code == 0 and 1 or 0
+            res.ok = not res.ok
         end
-        return res.code == 0 and res.stdout or nil
+        return res
     end
 end
 
