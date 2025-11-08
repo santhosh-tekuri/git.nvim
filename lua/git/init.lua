@@ -233,6 +233,12 @@ local function gitstatus(file)
         update_content(f)
     end
     local function commit(flags)
+        if #flags == 0 and cli.is_stage_empty() then
+            if vim.fn.confirm("No changes added to commit.\nDo you want to create empty commit?", "&Yes\n&No", 2) ~= 1 then
+                return
+            end
+            flags = { "--allow-empty" }
+        end
         close(nil)
         cli.commit(flags)
     end

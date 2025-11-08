@@ -41,6 +41,10 @@ function M.status_file(file)
     return res.code == 0 and res.stdout[1] or nil
 end
 
+function M.is_stage_empty()
+    return M.system({ "git", "diff", "--staged", "--exit-code", "--quiet" }).ok
+end
+
 function M.diff(file, staged)
     if not file then
         local status = M.status()
