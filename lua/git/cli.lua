@@ -19,6 +19,10 @@ function M.init()
     return res
 end
 
+function M.check_ignore(file)
+    return M.system({ "git", "check-ignore", "--quiet", "--", file })
+end
+
 function M.find_git()
     local res = M.system({ "git", "rev-parse", "--git-dir" })
     return res.ok and res.stdout[1] or nil

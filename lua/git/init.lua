@@ -47,6 +47,41 @@ local function setup_preview()
     return pbuf, pwin
 end
 
+local function check_modified_bufs()
+    local modified = {}
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.bo[buf].modified and vim.bo[buf].buftype == "" then
+            local file = vim.fn.bufname(buf)
+            file = vim.fn.fnamemodify(file, ":p")
+            if file:sub(1, #cli.root) == cli.root then
+                local ch = file:sub(#cli.root + 1, #cli.root + 1)
+                if ch == '/' or ch == '\\' then
+                    if not cli.check_ignore(file:sub(#cli.root + 2)).ok then
+                        table.insert(modified, buf)
+                    end
+                end
+            end
+        end
+    end
+    if #modified == 0 then
+        return
+    end
+    local msg = { "there are unsaved buffers:" }
+    for _, buf in ipairs(modified) do
+        table.insert(msg, "   " .. vim.fn.bufname(buf))
+    end
+    table.insert(msg, "")
+    table.insert(msg, "Do you want save them?")
+    if vim.fn.confirm(table.concat(msg, "\n"), "&Yes\n&No", 2) ~= 1 then
+        return
+    end
+    for _, buf in ipairs(modified) do
+        vim.api.nvim_buf_call(buf, function()
+            vim.cmd("silent! write")
+        end)
+    end
+end
+
 local gitdiff
 
 local function gitcommit(data)
@@ -358,7 +393,6 @@ function gitdiff(file)
             return
         end
         if not file then
-            vim.print(diff:is_header(dselection[1]))
             set_filemark(diff:file(dselection[1]))
         end
         local vfrom, vto = unpack(dselection)
@@ -529,6 +563,7 @@ local function setup()
             warn("Not a git repository")
             return
         end
+        check_modified_bufs()
         gitstatus()
     end)
 end
