@@ -82,7 +82,7 @@ local function check_modified_bufs()
     end
 end
 
-local gitdiff
+local gitstatus, gitdiff
 
 local function gitcommit(data)
     local f = io.open(data.file, "r")
@@ -113,7 +113,6 @@ local function gitcommit(data)
     })
     vim.api.nvim_set_option_value("winhighlight", "Normal:Normal,FloatBorder:Normal", { scope = "local", win = win })
     vim.api.nvim_set_option_value("wrap", false, { scope = "local", win = win })
-    local ignore_close = false
     vim.api.nvim_create_autocmd("BufWriteCmd", {
         buffer = buf,
         callback = function()
@@ -134,7 +133,7 @@ local function gitcommit(data)
             end
             file:write("0")
             file:close()
-            ignore_close = true
+            data.pipe = nil
             vim.bo.modified = false
             vim.schedule(function()
                 if vim.api.nvim_buf_is_valid(buf) then
@@ -146,16 +145,16 @@ local function gitcommit(data)
     vim.api.nvim_create_autocmd("WinClosed", {
         pattern = tostring(win),
         callback = function()
-            if ignore_close then
-                return
+            if data.pipe then
+                local file = io.open(data.pipe, "w")
+                if not file then
+                    warn("failed to write pipe " .. data.pipe)
+                    return
+                end
+                file:write("1")
+                file:close()
             end
-            local file = io.open(data.pipe, "w")
-            if not file then
-                warn("failed to write pipe " .. data.pipe)
-                return
-            end
-            file:write("1")
-            file:close()
+            gitstatus()
         end
     })
 end
@@ -166,7 +165,7 @@ local function pick_commit(on_close)
     end)
 end
 
-local function gitstatus(file)
+function gitstatus(file)
     local lines = cli.status()
     if not lines then
         warn("git status failed")
