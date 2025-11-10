@@ -82,6 +82,26 @@ local function check_modified_bufs()
     end
 end
 
+local function terminal(cmd, on_close)
+    local buf = vim.api.nvim_create_buf(false, true)
+    local win = vim.api.nvim_open_win(buf, true, {
+        relative = "editor",
+        row = vim.o.lines - 10 - 1,
+        col = 0,
+        width = vim.o.columns,
+        height = 10,
+        style = 'minimal',
+        zindex = 50,
+        title = { { "$ " .. cmd, "NormalFloat" } },
+        border = { " ", " ", " ", " ", " ", "", " ", " " },
+    })
+    vim.cmd.terminal(cmd)
+    vim.api.nvim_create_autocmd("WinClosed", {
+        pattern = tostring(win),
+        callback = on_close,
+    })
+end
+
 local gitstatus, gitdiff
 
 local function gitcommit(data)
@@ -166,20 +186,16 @@ local function pick_commit(on_close)
 end
 
 function gitstatus(file)
-    local lines = cli.status()
-    if not lines then
-        warn("git status failed")
-        return
-    end
-    if #lines == 1 then
-        warn("No changes detected. working tree clean")
-        return
-    end
-
+    local lines
     local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("cursorline", true, { scope = "local", win = pwin })
     local function update_content(f)
+        lines = cli.status()
+        if not lines then
+            warn("git status failed")
+            return
+        end
         local branch = lines[1]
         table.remove(lines, 1)
         vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
@@ -264,7 +280,6 @@ function gitstatus(file)
         if res.code ~= 0 then
             warn(table.concat(res.stderr, '\n'))
         end
-        lines = cli.status()
         update_content(f)
     end
     local function commit(flags, do_close)
@@ -311,6 +326,9 @@ function gitstatus(file)
     keymap("ff", fixup, { "--fixup=" })
     keymap("fa", fixup, { "--fixup=amend:" })
     keymap("fr", fixup, { "--fixup=reword:" })
+    keymap("F", terminal, { "git fetch", function() update_content() end })
+    keymap("p", terminal, { "git pull", function() update_content() end })
+    keymap("P", terminal, { "git push", function() update_content() end })
 end
 
 function StatusColumn1()
