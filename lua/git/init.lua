@@ -245,7 +245,9 @@ function gitstatus(file)
         end
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
-        vim.api.nvim_buf_delete(pbuf, {})
+        if vim.api.nvim_buf_is_valid(pbuf) then
+            vim.api.nvim_buf_delete(pbuf, {})
+        end
     end
     local function first()
         vim.api.nvim_win_set_cursor(pwin, { 1, 0 })
@@ -266,6 +268,12 @@ function gitstatus(file)
         buffer = pbuf,
         callback = function()
             vim.api.nvim_set_current_win(qwin)
+        end
+    })
+    vim.api.nvim_create_autocmd('WinClosed', {
+        buffer = qbuf,
+        callback = function()
+            vim.api.nvim_buf_delete(pbuf, {})
         end
     })
     local function keymap(lhs, func, args)
@@ -375,12 +383,20 @@ function gitdiff(file)
         gitstatus(file)
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
-        vim.api.nvim_buf_delete(pbuf, {})
+        if vim.api.nvim_buf_is_valid(pbuf) then
+            vim.api.nvim_buf_delete(pbuf, {})
+        end
     end
     vim.api.nvim_create_autocmd('WinEnter', {
         buffer = pbuf,
         callback = function()
             vim.api.nvim_set_current_win(qwin)
+        end
+    })
+    vim.api.nvim_create_autocmd('WinClosed', {
+        buffer = qbuf,
+        callback = function()
+            vim.api.nvim_buf_delete(pbuf, {})
         end
     })
     local function keymap(lhs, func, args)
