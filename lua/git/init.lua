@@ -51,14 +51,10 @@ local function check_modified_bufs()
     local modified = {}
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
         if vim.bo[buf].modified and vim.bo[buf].buftype == "" then
-            local file = vim.fn.bufname(buf)
-            file = vim.fn.fnamemodify(file, ":p")
-            if file:sub(1, #cli.root) == cli.root then
-                local ch = file:sub(#cli.root + 1, #cli.root + 1)
-                if ch == '/' or ch == '\\' then
-                    if not cli.check_ignore(file:sub(#cli.root + 2)).ok then
-                        table.insert(modified, buf)
-                    end
+            local path = cli.path(vim.fn.bufname(buf))
+            if path then
+                if not cli.check_ignore(path).ok then
+                    table.insert(modified, buf)
                 end
             end
         end
@@ -241,7 +237,9 @@ function gitstatus(file)
             arg = lines[line]:sub(4)
         end
         if accept then
-            gitdiff(arg)
+            gitdiff(arg, function()
+                gitstatus(arg)
+            end)
         end
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
@@ -353,7 +351,7 @@ function StatusColumn2()
     return "%#Removed#▎ "
 end
 
-function gitdiff(file)
+function gitdiff(file, on_close)
     local area = 2
     local diff = Diff:new({}, false)
 
@@ -380,7 +378,7 @@ function gitdiff(file)
         if closed then
             return
         end
-        gitstatus(file)
+        _ = on_close and on_close()
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
         if vim.api.nvim_buf_is_valid(pbuf) then
@@ -585,20 +583,45 @@ function gitdiff(file)
     move(1)
 end
 
-local function setup()
-    vim.keymap.set('n', ' x', function()
-        local res = cli.init()
-        if not res.ok then
-            warn_res("find root failed", res)
-            return
-        end
-        if not cli.root then
-            warn("Not a git repository")
-            return
-        end
+local function is_gitrepo()
+    local res = cli.init()
+    if not res.ok then
+        warn_res("find root failed", res)
+        return false
+    end
+    if not cli.root then
+        warn("Not a git repository")
+        return false
+    end
+    return true
+end
+
+vim.api.nvim_create_user_command('GitStatus', function(cmd)
+    if is_gitrepo() then
         check_modified_bufs()
         gitstatus()
-    end)
+    end
+end, { nargs = 0, desc = "Show Git Status" })
+
+vim.api.nvim_create_user_command('GitDiff', function(cmd)
+    if is_gitrepo() then
+        if #cmd.fargs == 0 then
+            check_modified_bufs()
+            gitdiff(nil, nil)
+        else
+            local arg = vim.fn.expandcmd(cmd.fargs[1])
+            arg = cli.path(arg)
+            if arg == nil then
+                warn("not in git repository")
+                return
+            end
+            gitdiff(arg)
+        end
+    end
+end, { nargs = '?', desc = "Show Git Status" })
+
+local function setup()
+    vim.keymap.set('n', ' x', "<cmd>GitStatus<cr>")
 end
 
 return { setup = setup }

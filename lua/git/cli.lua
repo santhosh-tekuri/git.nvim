@@ -19,6 +19,17 @@ function M.init()
     return res
 end
 
+function M.path(file)
+    file = vim.fn.fnamemodify(file, ":p")
+    if file:sub(1, #M.root) == M.root then
+        local ch = file:sub(#M.root + 1, #M.root + 1)
+        if ch == '/' or ch == '\\' then
+            return file:sub(#M.root + 2)
+        end
+    end
+    return nil
+end
+
 function M.check_ignore(file)
     return M.system({ "git", "check-ignore", "--quiet", "--", file })
 end
@@ -165,7 +176,7 @@ function M.commit(flags)
     vim.system(cmd, opts, function(res)
         local msg = res.code == 0 and res.stdout or res.stderr
         if msg and not msg:find("^error: There was a problem with the editor ") then
-            vim.schedule_wrap(vim.api.nvim_echo)({ { msg } }, false, {})
+            vim.schedule_wrap(vim.api.nvim_echo)({ { "\n" .. msg } }, false, {})
         end
     end)
 end
