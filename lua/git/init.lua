@@ -538,7 +538,7 @@ function gitdiff(file, on_close)
             end
         else
             local f = diff:file(diff.selection[1])
-            res = cli.restore(f)
+            res = cli.restore_entry(f)
             if res.code == 0 then
                 local patch = diff:patch_without_selection()
                 if patch then
