@@ -115,7 +115,7 @@ function M.diff(file, staged)
     end
 end
 
-function M.restore_entry(file)
+function M.clear_staged_changes(file)
     local b, e = file:find(" -> ", 1, true)
     if b then
         local old, new = file:sub(1, b - 1), file:sub(e + 1)
@@ -151,7 +151,7 @@ function M.toggle_status(file)
     if ch == '?' or ch ~= ' ' then
         return M.system({ "git", "add", "--", file })
     else
-        return M.restore_entry(file)
+        return M.system({ "git", "restore", "--staged", "--", file })
     end
 end
 
