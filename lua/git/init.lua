@@ -1,5 +1,6 @@
 local cli = require("git.cli")
 local Diff = require("git.Diff")
+local Status = require("git.Status")
 
 local ns = vim.api.nvim_create_namespace("gitstage")
 local ns_sep = vim.api.nvim_create_namespace("gitstage_sep")
@@ -182,36 +183,35 @@ local function pick_commit(on_close)
 end
 
 function gitstatus(file)
-    local lines
+    local status = Status:new({ "" }, false)
     local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("cursorline", true, { scope = "local", win = pwin })
     local function update_content(f)
-        lines = cli.status()
+        local lines = cli.status()
         if not lines then
             warn("git status failed")
             return
         end
-        local branch = lines[1]
-        table.remove(lines, 1)
+        status = Status:new(lines, false)
         vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
         vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
-            virt_text = { { branch:sub(3) } },
+            virt_text = { { status.branch } },
             virt_text_pos = "right_align",
             strict = false,
         })
 
         vim.api.nvim_buf_clear_namespace(pbuf, ns, 0, -1)
-        vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
+        vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, status.lines)
         if f then
-            for i, line in ipairs(lines) do
+            for i, line in ipairs(status.lines) do
                 if line:sub(#line - #f + 1) == f or line:find(" " .. f .. " ", 1, true) then
                     vim.api.nvim_win_set_cursor(pwin, { i, 0 })
                     break
                 end
             end
         end
-        for i, line in ipairs(lines) do
+        for i, line in ipairs(status.lines) do
             vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                 end_row = i - 1,
                 end_col = 1,
@@ -234,7 +234,7 @@ function gitstatus(file)
         local arg
         if accept and selection then
             local line = vim.api.nvim_win_get_cursor(pwin)[1]
-            arg = lines[line]:sub(4)
+            arg = status.lines[line]:sub(4)
         end
         if accept then
             gitdiff(arg, function()
@@ -251,7 +251,7 @@ function gitstatus(file)
         vim.api.nvim_win_set_cursor(pwin, { 1, 0 })
     end
     local function last()
-        vim.api.nvim_win_set_cursor(pwin, { #lines, 0 })
+        vim.api.nvim_win_set_cursor(pwin, { #status.lines, 0 })
     end
     local function move(i)
         local line = vim.api.nvim_win_get_cursor(pwin)[1] + i
@@ -281,7 +281,7 @@ function gitstatus(file)
     end
     local function toggle_status()
         local line = vim.api.nvim_win_get_cursor(pwin)[1]
-        local f = lines[line]:sub(4)
+        local f = status.lines[line]:sub(4)
         local res = cli.toggle_status(f)
         if res.code ~= 0 then
             warn(table.concat(res.stderr, '\n'))
@@ -596,7 +596,7 @@ local function is_gitrepo()
     return true
 end
 
-vim.api.nvim_create_user_command('GitStatus', function(cmd)
+vim.api.nvim_create_user_command('GitStatus', function()
     if is_gitrepo() then
         check_modified_bufs()
         gitstatus()
