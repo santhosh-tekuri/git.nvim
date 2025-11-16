@@ -376,6 +376,16 @@ function gitstatus(file)
                 warn(table.concat(res.stderr, '\n'))
             end
             update_content(nil)
+
+            -- retain selection in same category
+            line = vim.api.nvim_win_get_cursor(pwin)[1]
+            if status:category(line).name ~= cagetory.name then
+                if line > 1 and status:category(line - 1).name == cagetory.name then
+                    vim.api.nvim_win_set_cursor(pwin, { line - 1, 0 })
+                elseif line < #status.lines and status:category(line + 1).name == cagetory.name then
+                    vim.api.nvim_win_set_cursor(pwin, { line + 1, 0 })
+                end
+            end
         else
             local res = cli.toggle_status(f)
             if res.code ~= 0 then
@@ -403,6 +413,55 @@ function gitstatus(file)
             end
         end)
     end
+    local function toggle_view()
+        local line = vim.api.nvim_win_get_cursor(pwin)[1]
+        local f = status:file(line)
+        status.categorized = not status.categorized
+        update_content(f)
+    end
+    local function next_section()
+        if status.categorized then
+            local line = vim.api.nvim_win_get_cursor(pwin)[1]
+            local category = status:category(line)
+            while line + 1 <= #status.lines do
+                if status:category(line + 1).name ~= category.name then
+                    vim.api.nvim_win_set_cursor(pwin, { line + 1, 0 })
+                    return
+                end
+                line = line + 1
+            end
+            if #status.lines > 0 and status:category(1).name ~= category.name then
+                vim.api.nvim_win_set_cursor(pwin, { 1, 0 })
+            end
+        end
+    end
+    local function prev_section()
+        local function select_first_line(line)
+            local category = status:category(line)
+            while line - 1 >= 1 do
+                if status:category(line - 1).name ~= category.name then
+                    vim.api.nvim_win_set_cursor(pwin, { line, 0 })
+                    return
+                end
+                line = line - 1
+            end
+            vim.api.nvim_win_set_cursor(pwin, { line, 0 })
+        end
+        if status.categorized then
+            local line = vim.api.nvim_win_get_cursor(pwin)[1]
+            local category = status:category(line)
+            while line - 1 >= 1 do
+                if status:category(line - 1).name ~= category.name then
+                    select_first_line(line - 1)
+                    return
+                end
+                line = line - 1
+            end
+            if #status.lines > 0 and status:category(#status.lines).name ~= category.name then
+                select_first_line(#status.lines)
+            end
+        end
+    end
     vim.api.nvim_create_autocmd("User", {
         group = vim.api.nvim_create_augroup("GitCommit", {}),
         pattern = "GitCommit",
@@ -411,6 +470,9 @@ function gitstatus(file)
             close(nil)
         end,
     })
+    keymap("`", toggle_view, {})
+    keymap("<tab>", next_section, {})
+    keymap("<s-tab>", prev_section, {})
     keymap("<esc>", close, { nil })
     keymap("q", close, { nil })
     keymap("o", close, { true, true })

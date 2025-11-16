@@ -45,9 +45,9 @@ function M:category(line)
     end
     if line <= self.staged then
         return { staged = true, name = "staged" }
-    elseif line <= self.unstaged then
+    elseif line <= self.staged + self.unstaged then
         return { unstaged = true, name = "unstaged" }
-    elseif line <= self.unmerged then
+    elseif line <= self.staged + self.unstaged + self.unmerged then
         return { unmerged = true, name = "unmerged" }
     else
         return { untraced = true, name = "untracked" }
