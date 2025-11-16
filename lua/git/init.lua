@@ -183,7 +183,7 @@ local function pick_commit(on_close)
 end
 
 function gitstatus(file)
-    local status = Status:new({ "" }, false)
+    local status = Status:new({ "" }, true)
     local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("cursorline", true, { scope = "local", win = pwin })
@@ -193,7 +193,9 @@ function gitstatus(file)
             warn("git status failed")
             return
         end
-        status = Status:new(lines, false)
+        status = Status:new(lines, status.categorized)
+
+        -- show branch status info
         vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
         vim.api.nvim_buf_set_extmark(qbuf, ns, 0, 0, {
             virt_text = { { status.branch } },
@@ -203,6 +205,91 @@ function gitstatus(file)
 
         vim.api.nvim_buf_clear_namespace(pbuf, ns, 0, -1)
         vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, status.lines)
+
+        -- highlight status chars
+        if status.categorized then
+            local emptyline = false
+            local function virtline(str)
+                emptyline = true
+                if emptyline then
+                    return { {}, { { str } } }
+                else
+                    return { { { str } } }
+                end
+            end
+            if status.staged > 0 then
+                vim.api.nvim_buf_set_extmark(pbuf, ns, 0, 0, {
+                    virt_lines = virtline("Staged:"),
+                    virt_lines_above = true,
+                })
+            end
+            if status.unstaged > 0 then
+                vim.api.nvim_buf_set_extmark(pbuf, ns, status.staged, 0, {
+                    virt_lines = virtline("Unstaged:"),
+                    virt_lines_above = true,
+                })
+            end
+            if status.unmerged > 0 then
+                vim.api.nvim_buf_set_extmark(pbuf, ns, status.staged + status.unstaged, 0, {
+                    virt_lines = virtline("Unmerged:"),
+                    virt_lines_above = true,
+                })
+            end
+            if status.untracked > 0 then
+                vim.api.nvim_buf_set_extmark(pbuf, ns, status.staged + status.unstaged + status.unmerged, 0, {
+                    virt_lines = virtline("Untracked:"),
+                    virt_lines_above = true,
+                })
+            end
+            for i, line in ipairs(status.lines) do
+                local category = status:category(i)
+                if category.staged then
+                    vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                        end_row = i - 1,
+                        end_col = 1,
+                        hl_group = "Added",
+                    })
+                elseif category.unstaged then
+                    vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                        end_row = i - 1,
+                        end_col = 1,
+                        hl_group = "Removed",
+                    })
+                elseif category.unmerged then
+                    vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                        end_row = i - 1,
+                        end_col = 1,
+                        hl_group = line:sub(1, 1) == "?" and "Removed" or "Added",
+                    })
+                    vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 1, {
+                        end_row = i - 1,
+                        end_col = 2,
+                        hl_group = "Removed",
+                    })
+                else
+                    vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                        end_row = i - 1,
+                        end_col = 1,
+                        hl_group = "Removed",
+                    })
+                end
+            end
+        else
+            for i, line in ipairs(status.lines) do
+                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                    end_row = i - 1,
+                    end_col = 1,
+                    hl_group = line:sub(1, 1) == "?" and "Removed" or "Added",
+                })
+                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 1, {
+                    end_row = i - 1,
+                    end_col = 2,
+                    hl_group = "Removed",
+                })
+            end
+        end
+
+        -- try to retain selection
         if f then
             for i, line in ipairs(status.lines) do
                 if line:sub(#line - #f + 1) == f or line:find(" " .. f .. " ", 1, true) then
@@ -211,17 +298,10 @@ function gitstatus(file)
                 end
             end
         end
-        for i, line in ipairs(status.lines) do
-            vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
-                end_row = i - 1,
-                end_col = 1,
-                hl_group = line:sub(1, 1) == "?" and "Removed" or "Added",
-            })
-            vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 1, {
-                end_row = i - 1,
-                end_col = 2,
-                hl_group = "Removed",
-            })
+        if vim.fn.getwininfo(pwin)[1].topline == 1 then
+            vim.api.nvim_win_call(pwin, function()
+                vim.cmd("normal! ")
+            end)
         end
     end
     update_content(file)
@@ -234,7 +314,7 @@ function gitstatus(file)
         local arg
         if accept and selection then
             local line = vim.api.nvim_win_get_cursor(pwin)[1]
-            arg = status.lines[line]:sub(4)
+            arg = status:file(line)
         end
         if accept then
             gitdiff(arg, function()
@@ -281,12 +361,28 @@ function gitstatus(file)
     end
     local function toggle_status()
         local line = vim.api.nvim_win_get_cursor(pwin)[1]
-        local f = status.lines[line]:sub(4)
-        local res = cli.toggle_status(f)
-        if res.code ~= 0 then
-            warn(table.concat(res.stderr, '\n'))
+        local f = status:file(line)
+        if status.categorized then
+            local cagetory = status:category(line)
+            local res
+            if cagetory.staged then
+                res = cli.unstage_file(f)
+            elseif cagetory.unstaged then
+                res = cli.stage_file(f)
+            else
+                res = cli.toggle_status(f)
+            end
+            if res.code ~= 0 then
+                warn(table.concat(res.stderr, '\n'))
+            end
+            update_content(nil)
+        else
+            local res = cli.toggle_status(f)
+            if res.code ~= 0 then
+                warn(table.concat(res.stderr, '\n'))
+            end
+            update_content(f)
         end
-        update_content(f)
     end
     local function commit(flags, do_close)
         if #flags == 0 and cli.is_stage_empty() then

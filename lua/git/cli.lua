@@ -138,6 +138,22 @@ function M.clear_staged_changes(file)
     end
 end
 
+function M.stage_file(file)
+    local b, e = file:find(" -> ", 1, true)
+    if b then
+        file = file:sub(e + 1)
+    end
+    return M.system({ "git", "add", "--", file })
+end
+
+function M.unstage_file(file)
+    local b, e = file:find(" -> ", 1, true)
+    if b then
+        file = file:sub(e + 1)
+    end
+    return M.system({ "git", "restore", "--staged", "--", file })
+end
+
 function M.toggle_status(file)
     local entry = M.status_file(file)
     if not entry then

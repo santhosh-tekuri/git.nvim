@@ -15,7 +15,7 @@ function M:new(lines, categorized)
                 table.insert(unmerged, line)
             else
                 if ch1 ~= ' ' then
-                    table.insert(staged, ch1 + line:sub(3))
+                    table.insert(staged, ch1 .. line:sub(3))
                 end
                 if ch2 ~= ' ' then
                     table.insert(unstaged, line:sub(2))
@@ -44,13 +44,13 @@ function M:category(line)
         return nil
     end
     if line <= self.staged then
-        return { staged = true }
+        return { staged = true, name = "staged" }
     elseif line <= self.unstaged then
-        return { unstaged = true }
+        return { unstaged = true, name = "unstaged" }
     elseif line <= self.unmerged then
-        return { unmerged = true }
+        return { unmerged = true, name = "unmerged" }
     else
-        return { untraced = true }
+        return { untraced = true, name = "untracked" }
     end
 end
 
