@@ -311,15 +311,16 @@ function gitstatus(file)
         if closed then
             return
         end
-        local arg
-        if accept and selection then
-            local line = vim.api.nvim_win_get_cursor(pwin)[1]
-            arg = status:file(line)
-        end
         if accept then
+            local line = vim.api.nvim_win_get_cursor(pwin)[1]
+            local arg = selection and status:file(line) or nil
+            local staged
+            if status.categorized then
+                staged = status:category(line).staged
+            end
             gitdiff(arg, function()
                 gitstatus(arg)
-            end)
+            end, staged)
         end
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
@@ -509,8 +510,8 @@ function StatusColumn2()
     return "%#Removed#▎ "
 end
 
-function gitdiff(file, on_close)
-    local area = 2
+function gitdiff(file, on_close, staged)
+    local area = staged and 1 or 2
     local diff = Diff:new({}, false)
 
     local qbuf, qwin = setup_query()
