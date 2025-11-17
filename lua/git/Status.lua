@@ -50,7 +50,7 @@ function M:category(line)
     elseif line <= self.staged + self.unstaged + self.unmerged then
         return { unmerged = true, name = "unmerged" }
     else
-        return { untraced = true, name = "untracked" }
+        return { untracked = true, name = "untracked" }
     end
 end
 

@@ -242,6 +242,11 @@ function gitstatus(file)
                 })
             end
             for i, line in ipairs(status.lines) do
+                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                    virt_text = { { "    " } },
+                    virt_text_pos = "inline",
+                    end_col = 0,
+                })
                 local category = status:category(i)
                 if category.staged then
                     vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
@@ -270,7 +275,7 @@ function gitstatus(file)
                     vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                         end_row = i - 1,
                         end_col = 1,
-                        hl_group = "Removed",
+                        hl_group = "Comment",
                     })
                 end
             end
