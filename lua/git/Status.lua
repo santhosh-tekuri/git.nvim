@@ -20,31 +20,33 @@ function M:new(lines)
                 table.insert(unstaged, line:sub(2))
             end
         end
-        lines = {}
-        vim.list_extend(lines, staged)
-        vim.list_extend(lines, unstaged)
-        vim.list_extend(lines, unmerged)
-        vim.list_extend(lines, untracked)
-        inst.lines = lines
-        inst.staged = #staged
-        inst.unstaged = #unstaged
-        inst.unmerged = #unmerged
-        inst.untracked = #untracked
     end
+    lines = {}
+    local types = {}
+    vim.list_extend(lines, staged)
+    while #types < #lines do
+        table.insert(types, "Staged")
+    end
+    vim.list_extend(lines, unstaged)
+    while #types < #lines do
+        table.insert(types, "Unstaged")
+    end
+    vim.list_extend(lines, unmerged)
+    while #types < #lines do
+        table.insert(types, "Unmerged")
+    end
+    vim.list_extend(lines, untracked)
+    while #types < #lines do
+        table.insert(types, "Untracked")
+    end
+    inst.lines = lines
+    inst.types = types
+    inst.staged = #staged
+    inst.unstaged = #unstaged
+    inst.unmerged = #unmerged
+    inst.untracked = #untracked
     setmetatable(inst, M)
     return inst
-end
-
-function M:category(line)
-    if line <= self.staged then
-        return { staged = true, name = "staged" }
-    elseif line <= self.staged + self.unstaged then
-        return { unstaged = true, name = "unstaged" }
-    elseif line <= self.staged + self.unstaged + self.unmerged then
-        return { unmerged = true, name = "unmerged" }
-    else
-        return { untracked = true, name = "untracked" }
-    end
 end
 
 function M:file(line)

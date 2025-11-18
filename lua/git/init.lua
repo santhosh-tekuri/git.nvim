@@ -182,12 +182,30 @@ local function pick_commit(on_close)
     end)
 end
 
-function gitstatus(file)
+function gitstatus(selection)
     local status = Status:new({ "" })
     local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("cursorline", true, { scope = "local", win = pwin })
-    local function update_content(f)
+    local function capture_selection()
+        local line = vim.api.nvim_win_get_cursor(pwin)[1]
+        local typ = status.types[line]
+        return { line = line, typ = typ }
+    end
+    local function retain_selection(sel)
+        local line = sel.line
+        local typ = sel.typ
+        if status.types[line] ~= typ then
+            if line > 1 and status.types[line - 1] == typ then
+                vim.api.nvim_win_set_cursor(pwin, { line - 1, 0 })
+            elseif line < #status.lines and status.types[line + 1] == typ then
+                vim.api.nvim_win_set_cursor(pwin, { line + 1, 0 })
+            end
+        else
+            vim.api.nvim_win_set_cursor(pwin, { line, 0 })
+        end
+    end
+    local function update_content(sel)
         local lines = cli.status()
         if not lines then
             warn("git status failed")
@@ -216,50 +234,39 @@ function gitstatus(file)
                 return { { { str } } }
             end
         end
-        if status.staged > 0 then
-            vim.api.nvim_buf_set_extmark(pbuf, ns, 0, 0, {
-                virt_lines = virtline("Staged:"),
-                virt_lines_above = true,
-            })
-        end
-        if status.unstaged > 0 then
-            vim.api.nvim_buf_set_extmark(pbuf, ns, status.staged, 0, {
-                virt_lines = virtline("Unstaged:"),
-                virt_lines_above = true,
-            })
-        end
-        if status.unmerged > 0 then
-            vim.api.nvim_buf_set_extmark(pbuf, ns, status.staged + status.unstaged, 0, {
-                virt_lines = virtline("Unmerged:"),
-                virt_lines_above = true,
-            })
-        end
-        if status.untracked > 0 then
-            vim.api.nvim_buf_set_extmark(pbuf, ns, status.staged + status.unstaged + status.unmerged, 0, {
-                virt_lines = virtline("Untracked:"),
-                virt_lines_above = true,
-            })
+        for i = 1, #status.lines do
+            if i == 1 or status.types[i] ~= status.types[i - 1] then
+                local virtlines = {}
+                if i ~= 1 then
+                    table.insert(virtlines, {})
+                end
+                table.insert(virtlines, { { status.types[i] .. ":" } })
+                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                    virt_lines = virtlines,
+                    virt_lines_above = true,
+                })
+            end
         end
         for i, line in ipairs(status.lines) do
             vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
-                virt_text = { { "    " } },
+                virt_text = { { "  " } },
                 virt_text_pos = "inline",
                 end_col = 0,
             })
-            local category = status:category(i)
-            if category.staged then
+            local typ = status.types[i]
+            if typ == "Staged" then
                 vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                     end_row = i - 1,
                     end_col = 1,
                     hl_group = "Added",
                 })
-            elseif category.unstaged then
+            elseif typ == "Unstaged" then
                 vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                     end_row = i - 1,
                     end_col = 1,
                     hl_group = "Removed",
                 })
-            elseif category.unmerged then
+            elseif typ == "Unmerged" then
                 vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                     end_row = i - 1,
                     end_col = 1,
@@ -280,13 +287,8 @@ function gitstatus(file)
         end
 
         -- try to retain selection
-        if f then
-            for i, line in ipairs(status.lines) do
-                if line:sub(#line - #f + 1) == f or line:find(" " .. f .. " ", 1, true) then
-                    vim.api.nvim_win_set_cursor(pwin, { i, 0 })
-                    break
-                end
-            end
+        if sel then
+            retain_selection(sel)
         end
         if vim.fn.getwininfo(pwin)[1].topline == 1 then
             vim.api.nvim_win_call(pwin, function()
@@ -294,19 +296,20 @@ function gitstatus(file)
             end)
         end
     end
-    update_content(file)
+    update_content(selection)
 
     local closed = false
-    local function close(accept, selection)
+    local function close(accept, use_selection)
         if closed then
             return
         end
         if accept then
             local line = vim.api.nvim_win_get_cursor(pwin)[1]
-            local arg = selection and status:file(line) or nil
-            local staged = status:category(line).staged
+            local arg = use_selection and status:file(line) or nil
+            local staged = status.types[line] == "Staged"
+            local sel = capture_selection()
             gitdiff(arg, function()
-                gitstatus(arg)
+                gitstatus(sel)
             end, staged)
         end
         closed = true
@@ -350,11 +353,11 @@ function gitstatus(file)
     local function toggle_status()
         local line = vim.api.nvim_win_get_cursor(pwin)[1]
         local f = status:file(line)
-        local cagetory = status:category(line)
+        local typ = status.types[line]
         local res
-        if cagetory.staged then
+        if typ == "Staged" then
             res = cli.unstage_file(f)
-        elseif cagetory.unstaged then
+        elseif typ == "Unstaged" then
             res = cli.stage_file(f)
         else
             res = cli.toggle_status(f)
@@ -362,17 +365,9 @@ function gitstatus(file)
         if res.code ~= 0 then
             warn(table.concat(res.stderr, '\n'))
         end
+        local sel = capture_selection()
         update_content(nil)
-
-        -- retain selection in same category
-        line = vim.api.nvim_win_get_cursor(pwin)[1]
-        if status:category(line).name ~= cagetory.name then
-            if line > 1 and status:category(line - 1).name == cagetory.name then
-                vim.api.nvim_win_set_cursor(pwin, { line - 1, 0 })
-            elseif line < #status.lines and status:category(line + 1).name == cagetory.name then
-                vim.api.nvim_win_set_cursor(pwin, { line + 1, 0 })
-            end
-        end
+        retain_selection(sel)
     end
     local function commit(flags, do_close)
         if #flags == 0 and cli.is_stage_empty() then
@@ -395,23 +390,21 @@ function gitstatus(file)
     end
     local function next_section()
         local line = vim.api.nvim_win_get_cursor(pwin)[1]
-        local category = status:category(line)
         while line + 1 <= #status.lines do
-            if status:category(line + 1).name ~= category.name then
+            if status.types[line + 1] ~= status.types[line] then
                 vim.api.nvim_win_set_cursor(pwin, { line + 1, 0 })
                 return
             end
             line = line + 1
         end
-        if #status.lines > 0 and status:category(1).name ~= category.name then
+        if #status.lines > 0 and status.types[1] ~= status.types[line] then
             vim.api.nvim_win_set_cursor(pwin, { 1, 0 })
         end
     end
     local function prev_section()
         local function select_first_line(line)
-            local category = status:category(line)
             while line - 1 >= 1 do
-                if status:category(line - 1).name ~= category.name then
+                if status.types[line - 1] ~= status.types[line] then
                     vim.api.nvim_win_set_cursor(pwin, { line, 0 })
                     return
                 end
@@ -420,15 +413,14 @@ function gitstatus(file)
             vim.api.nvim_win_set_cursor(pwin, { line, 0 })
         end
         local line = vim.api.nvim_win_get_cursor(pwin)[1]
-        local category = status:category(line)
         while line - 1 >= 1 do
-            if status:category(line - 1).name ~= category.name then
+            if status.types[line - 1] ~= status.types[line] then
                 select_first_line(line - 1)
                 return
             end
             line = line - 1
         end
-        if #status.lines > 0 and status:category(#status.lines).name ~= category.name then
+        if #status.lines > 0 and status.types[#status.lines] ~= status.types[line] then
             select_first_line(#status.lines)
         end
     end
