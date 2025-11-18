@@ -206,12 +206,7 @@ function gitstatus(selection)
         end
     end
     local function update_content(sel)
-        local lines = cli.status()
-        if not lines then
-            warn("git status failed")
-            return
-        end
-        status = Status:new(lines)
+        status = Status:new()
 
         -- show branch status info
         vim.api.nvim_buf_clear_namespace(qbuf, ns, 0, -1)
@@ -225,15 +220,6 @@ function gitstatus(selection)
         vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, status.lines)
 
         -- highlight status chars
-        local emptyline = false
-        local function virtline(str)
-            emptyline = true
-            if emptyline then
-                return { {}, { { str } } }
-            else
-                return { { { str } } }
-            end
-        end
         for i = 1, #status.lines do
             if i == 1 or status.types[i] ~= status.types[i - 1] then
                 local virtlines = {}
@@ -277,7 +263,7 @@ function gitstatus(selection)
                     end_col = 2,
                     hl_group = "Removed",
                 })
-            else
+            elseif typ == "Untracked" then
                 vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                     end_row = i - 1,
                     end_col = 1,
@@ -359,7 +345,7 @@ function gitstatus(selection)
             res = cli.unstage_file(f)
         elseif typ == "Unstaged" then
             res = cli.stage_file(f)
-        else
+        elseif typ == "UnMerged" or typ == "Untracked" then
             res = cli.toggle_status(f)
         end
         if res.code ~= 0 then

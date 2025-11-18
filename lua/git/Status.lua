@@ -1,12 +1,14 @@
+local cli = require("git.cli")
+
 local M = {}
 M.__index = M
 
-function M:new(lines)
-    local inst = {}
-    inst.branch = lines[1]:sub(4)
-    table.remove(lines, 1)
+function M:new()
+    local status = assert(cli.status())
+    local branch = status[1]:sub(4)
+    table.remove(status, 1)
     local staged, unstaged, unmerged, untracked = {}, {}, {}, {}
-    for _, line in ipairs(lines) do
+    for _, line in ipairs(status) do
         local ch1, ch2 = line:sub(1, 1), line:sub(2, 2)
         if ch1 == '?' and ch2 == '?' then
             table.insert(untracked, line:sub(2))
@@ -21,8 +23,7 @@ function M:new(lines)
             end
         end
     end
-    lines = {}
-    local types = {}
+    local lines, types = {}, {}
     vim.list_extend(lines, staged)
     while #types < #lines do
         table.insert(types, "Staged")
@@ -39,8 +40,11 @@ function M:new(lines)
     while #types < #lines do
         table.insert(types, "Untracked")
     end
-    inst.lines = lines
-    inst.types = types
+    local inst = {
+        branch = branch,
+        lines = lines,
+        types = types,
+    }
     inst.staged = #staged
     inst.unstaged = #unstaged
     inst.unmerged = #unmerged
