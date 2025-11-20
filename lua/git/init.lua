@@ -420,6 +420,23 @@ function gitstatus(selection)
             select_first_line(#status.lines)
         end
     end
+    local function gitpush()
+        local cmd = "git push"
+        local line = vim.api.nvim_win_get_cursor(pwin)[1]
+        if status.types[line] == "Ahead" then
+            line = status.lines[line]
+            local sp = line:find(" ", 1, true)
+            local branch = status.branch
+            local dot = branch:find("...", 1, true)
+            if dot then
+                branch = branch:sub(1, dot - 1)
+            end
+            cmd = ("git push origin %s:%s"):format(line:sub(1, sp - 1), branch)
+        end
+        terminal(cmd, function()
+            update_content()
+        end)
+    end
     vim.api.nvim_create_autocmd("User", {
         group = vim.api.nvim_create_augroup("GitCommit", {}),
         pattern = "GitCommit",
@@ -449,7 +466,7 @@ function gitstatus(selection)
     keymap("fr", fixup, { "--fixup=reword:" })
     keymap("F", terminal, { "git fetch", function() update_content() end })
     keymap("p", terminal, { "git pull", function() update_content() end })
-    keymap("P", terminal, { "git push", function() update_content() end })
+    keymap("P", gitpush, {})
 end
 
 function StatusColumn1()
