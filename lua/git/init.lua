@@ -183,7 +183,7 @@ local function pick_commit(on_close)
 end
 
 function gitstatus(selection)
-    local status = Status:new({ "" })
+    local status
     local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("cursorline", true, { scope = "local", win = pwin })
@@ -269,6 +269,12 @@ function gitstatus(selection)
                     end_col = 1,
                     hl_group = "Comment",
                 })
+            elseif typ == "Ahead" or typ == "Behind" then
+                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                    end_row = i - 1,
+                    end_col = line:find(" ", 1, true),
+                    hl_group = "Comment",
+                })
             end
         end
 
@@ -291,12 +297,16 @@ function gitstatus(selection)
         end
         if accept then
             local line = vim.api.nvim_win_get_cursor(pwin)[1]
-            local arg = use_selection and status:file(line) or nil
-            local staged = status.types[line] == "Staged"
-            local sel = capture_selection()
-            gitdiff(arg, function()
-                gitstatus(sel)
-            end, staged)
+            if vim.list_contains({ "Staged", "Unstaged", "Unmerged", "Untracked" }, status.types[line]) then
+                local staged = status.types[line] == "Staged"
+                local arg = use_selection and status:file(line) or nil
+                local sel = capture_selection()
+                gitdiff(arg, function()
+                    gitstatus(sel)
+                end, staged)
+            else
+                return
+            end
         end
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})

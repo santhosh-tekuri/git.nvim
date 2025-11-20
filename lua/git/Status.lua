@@ -40,6 +40,22 @@ function M:new()
     while #types < #lines do
         table.insert(types, "Untracked")
     end
+
+    local res = cli.system({ "git", "--no-pager", "log", "--pretty=format:%h %s", "@{upstream}..HEAD" })
+    if res.ok then
+        vim.list_extend(lines, res.stdout)
+        while #types < #lines do
+            table.insert(types, "Ahead")
+        end
+    end
+    res = cli.system({ "git", "--no-pager", "log", "--pretty=format:%h %s", "HEAD..@{upstream}" })
+    if res.ok then
+        vim.list_extend(lines, res.stdout)
+        while #types < #lines do
+            table.insert(types, "Behind")
+        end
+    end
+
     local inst = {
         branch = branch,
         lines = lines,
