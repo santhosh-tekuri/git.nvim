@@ -174,11 +174,6 @@ end
 function M.apply(patch, args)
     table.insert(patch, "")
     patch = table.concat(patch, '\n')
-    local file = io.open("patch.diff", "w")
-    if file then
-        file:write(patch)
-        file:close()
-    end
     local cmd = vim.list_extend({ "git", "apply" }, args or {})
     cmd = vim.list_extend(cmd, { "-" })
     return M.system(cmd, { stdin = patch })
