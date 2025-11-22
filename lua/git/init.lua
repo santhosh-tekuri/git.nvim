@@ -296,10 +296,16 @@ local function gitstatus(selection)
             return
         end
         closed = true
-        vim.api.nvim_buf_delete(qbuf, {})
+        if vim.api.nvim_buf_is_valid(qbuf) then
+            vim.api.nvim_buf_delete(qbuf, {})
+        end
         if vim.api.nvim_buf_is_valid(pbuf) then
             vim.api.nvim_buf_delete(pbuf, {})
         end
+    end
+    local function quit()
+        close()
+        vim.cmd.checktime()
     end
     local function open(use_selection)
         local line = vim.api.nvim_win_get_cursor(pwin)[1]
@@ -337,7 +343,7 @@ local function gitstatus(selection)
     vim.api.nvim_create_autocmd('WinClosed', {
         buffer = qbuf,
         callback = function()
-            vim.api.nvim_buf_delete(pbuf, {})
+            quit()
         end
     })
     local function keymap(lhs, func, args)
@@ -446,8 +452,8 @@ local function gitstatus(selection)
     })
     keymap("<tab>", next_section, {})
     keymap("<s-tab>", prev_section, {})
-    keymap("<esc>", close, {})
-    keymap("q", close, {})
+    keymap("<esc>", quit, {})
+    keymap("q", quit, {})
     keymap("o", open, { true })
     keymap("O", open, { false })
     keymap("<cr>", open, { true })
