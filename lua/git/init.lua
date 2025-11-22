@@ -291,27 +291,26 @@ local function gitstatus(selection)
     update_content(selection)
 
     local closed = false
-    local function close(accept, use_selection)
+    local function close()
         if closed then
             return
-        end
-        if accept then
-            local line = vim.api.nvim_win_get_cursor(pwin)[1]
-            if vim.list_contains({ "Staged", "Unstaged", "Unmerged", "Untracked" }, status.types[line]) then
-                local staged = status.types[line] == "Staged"
-                local arg = use_selection and status:file(line) or nil
-                local sel = capture_selection()
-                gitdiff(arg, function()
-                    gitstatus(sel)
-                end, staged)
-            else
-                return
-            end
         end
         closed = true
         vim.api.nvim_buf_delete(qbuf, {})
         if vim.api.nvim_buf_is_valid(pbuf) then
             vim.api.nvim_buf_delete(pbuf, {})
+        end
+    end
+    local function open(use_selection)
+        local line = vim.api.nvim_win_get_cursor(pwin)[1]
+        if vim.list_contains({ "Staged", "Unstaged", "Unmerged", "Untracked" }, status.types[line]) then
+            local staged = status.types[line] == "Staged"
+            local arg = use_selection and status:file(line) or nil
+            local sel = capture_selection()
+            gitdiff(arg, function()
+                gitstatus(sel)
+            end, staged)
+            close()
         end
     end
     local function first()
@@ -373,7 +372,7 @@ local function gitstatus(selection)
             flags = { "--allow-empty" }
         end
         if do_close then
-            close(nil)
+            close()
         end
         cli.commit(flags)
     end
@@ -442,16 +441,16 @@ local function gitstatus(selection)
         pattern = "GitCommit",
         callback = function(args)
             gitcommit(args.data, gitstatus)
-            close(nil)
+            close()
         end,
     })
     keymap("<tab>", next_section, {})
     keymap("<s-tab>", prev_section, {})
-    keymap("<esc>", close, { nil })
-    keymap("q", close, { nil })
-    keymap("o", close, { true, true })
-    keymap("O", close, { true, false })
-    keymap("<cr>", close, { true, true })
+    keymap("<esc>", close, {})
+    keymap("q", close, {})
+    keymap("o", open, { true })
+    keymap("O", open, { false })
+    keymap("<cr>", open, { true })
     keymap("j", move, { 1 })
     keymap("<down>", move, { 1 })
     keymap("k", move, { -1 })
