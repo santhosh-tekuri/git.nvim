@@ -99,9 +99,9 @@ local function terminal(cmd, on_close)
     })
 end
 
-local gitstatus, gitdiff
+local gitdiff
 
-local function gitcommit(data)
+local function gitcommit(data, on_close)
     local f = io.open(data.file, "r")
     if not f then
         warn("failed to open file " .. data.file)
@@ -171,7 +171,7 @@ local function gitcommit(data)
                 file:write("1")
                 file:close()
             end
-            gitstatus()
+            _ = on_close and on_close()
         end
     })
 end
@@ -182,7 +182,7 @@ local function pick_commit(on_close)
     end)
 end
 
-function gitstatus(selection)
+local function gitstatus(selection)
     local status
     local qbuf, qwin = setup_query()
     local pbuf, pwin = setup_preview()
@@ -441,7 +441,7 @@ function gitstatus(selection)
         group = vim.api.nvim_create_augroup("GitCommit", {}),
         pattern = "GitCommit",
         callback = function(args)
-            gitcommit(args.data)
+            gitcommit(args.data, gitstatus)
             close(nil)
         end,
     })
@@ -753,7 +753,7 @@ vim.api.nvim_create_user_command('GitDiff', function(cmd)
 end, { nargs = '?', desc = "Show Git Status" })
 
 local function setup()
-    vim.keymap.set('n', ' x', "<cmd>GitStatus<cr>")
+    vim.keymap.set('n', ' g', "<cmd>GitStatus<cr>")
 end
 
 return { setup = setup }
