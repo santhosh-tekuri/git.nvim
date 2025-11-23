@@ -744,7 +744,7 @@ vim.api.nvim_create_user_command('GitDiff', function(cmd)
     if is_gitrepo() then
         if #cmd.fargs == 0 then
             check_modified_bufs()
-            gitdiff(nil, vim.cmd.checktime)
+            gitdiff(nil, vim.cmd.checktime, cmd.bang)
         else
             local arg = vim.fn.expandcmd(cmd.fargs[1])
             arg = cli.path(arg)
@@ -752,13 +752,7 @@ vim.api.nvim_create_user_command('GitDiff', function(cmd)
                 warn("not in git repository")
                 return
             end
-            gitdiff(arg, vim.cmd.checktime)
+            gitdiff(arg, vim.cmd.checktime, cmd.bang)
         end
     end
-end, { nargs = '?', desc = "Show Git Status" })
-
-local function setup()
-    vim.keymap.set('n', ' g', "<cmd>GitStatus<cr>")
-end
-
-return { setup = setup }
+end, { nargs = '?', bang = true, desc = "Show Git Status" })
