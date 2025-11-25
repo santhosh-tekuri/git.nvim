@@ -100,8 +100,9 @@ local function terminal(cmd, on_close)
 end
 
 local gitdiff
+local gitstatus_close
 
-local function gitcommit(data, on_close)
+local function edit_commitmsg(data, on_close)
     local f = io.open(data.file, "r")
     if not f then
         warn("failed to open file " .. data.file)
@@ -180,6 +181,16 @@ local function pick_commit(on_close)
     require("picker").pick_git_commit(function(item)
         on_close(item and item.hash or nil)
     end)
+end
+
+local function commit(flags)
+    if #flags == 0 and cli.is_stage_empty() then
+        if vim.fn.confirm("No changes added to commit.\nDo you want to create empty commit?", "&Yes\n&No", 2) ~= 1 then
+            return
+        end
+        flags = { "--allow-empty" }
+    end
+    cli.commit(flags)
 end
 
 local function gitstatus(selection)
@@ -290,12 +301,11 @@ local function gitstatus(selection)
     end
     update_content(selection)
 
-    local closed = false
     local function close()
-        if closed then
+        if not gitstatus_close then
             return
         end
-        closed = true
+        gitstatus_close = nil
         if vim.api.nvim_buf_is_valid(qbuf) then
             vim.api.nvim_buf_delete(qbuf, {})
         end
@@ -303,6 +313,7 @@ local function gitstatus(selection)
             vim.api.nvim_buf_delete(pbuf, {})
         end
     end
+    gitstatus_close = close
     local function quit()
         close()
         vim.cmd.checktime()
@@ -370,22 +381,10 @@ local function gitstatus(selection)
         update_content(nil)
         retain_selection(sel)
     end
-    local function commit(flags, do_close)
-        if #flags == 0 and cli.is_stage_empty() then
-            if vim.fn.confirm("No changes added to commit.\nDo you want to create empty commit?", "&Yes\n&No", 2) ~= 1 then
-                return
-            end
-            flags = { "--allow-empty" }
-        end
-        if do_close then
-            close()
-        end
-        cli.commit(flags)
-    end
     local function fixup(flag)
         pick_commit(function(hash)
             if hash then
-                commit({ flag .. hash }, flag == "fixup=")
+                commit({ flag .. hash })
             end
         end)
     end
@@ -442,14 +441,6 @@ local function gitstatus(selection)
             update_content()
         end)
     end
-    vim.api.nvim_create_autocmd("User", {
-        group = vim.api.nvim_create_augroup("GitCommit", {}),
-        pattern = "GitCommit",
-        callback = function(args)
-            gitcommit(args.data, gitstatus)
-            close()
-        end,
-    })
     keymap("<tab>", next_section, {})
     keymap("<s-tab>", prev_section, {})
     keymap("<esc>", quit, {})
@@ -473,6 +464,15 @@ local function gitstatus(selection)
     keymap("p", terminal, { "git pull", function() update_content() end })
     keymap("P", gitpush, {})
 end
+
+vim.api.nvim_create_autocmd("User", {
+    group = vim.api.nvim_create_augroup("GitCommit", {}),
+    pattern = "GitCommit",
+    callback = function(args)
+        edit_commitmsg(args.data, gitstatus_close and gitstatus or nil)
+        _ = gitstatus_close and gitstatus_close()
+    end,
+})
 
 function StatusColumn1()
     if vim.v.virtnum < 0 then
@@ -732,6 +732,13 @@ local function is_gitrepo()
     end
     return true
 end
+
+vim.api.nvim_create_user_command('GitCommit', function(cmd)
+    for i, arg in ipairs(cmd.fargs) do
+        cmd.fargs[i] = vim.fn.expandcmd(arg)
+    end
+    commit(cmd.fargs)
+end, { nargs = 0, desc = "Git Commit" })
 
 vim.api.nvim_create_user_command('GitStatus', function()
     if is_gitrepo() then
