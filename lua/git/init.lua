@@ -441,6 +441,37 @@ local function gitstatus(selection)
             update_content()
         end)
     end
+    local function restore()
+        local line = vim.api.nvim_win_get_cursor(pwin)[1]
+        local f = status:file(line)
+        local b, e = f:find(" -> ", 1, true)
+        if b then
+            f = f:sub(e + 1)
+        end
+        local typ = status.types[line]
+        local res
+        if typ == "Staged" then
+            res = cli.system({ "git", "restore", "--staged", "--", f })
+        elseif typ == "Unstaged" then
+            if vim.fn.confirm("Are you sure you want to restore? It is irreversible.", "&Yes\n&No", 2) ~= 1 then
+                return
+            end
+            res = cli.system({ "git", "restore", "--", f })
+        elseif typ == "Untracked" then
+            if vim.fn.confirm("Are you sure you want to restore? It is irreversible.", "&Yes\n&No", 2) ~= 1 then
+                return
+            end
+            res = cli.system({ "rm", "--", f })
+        else
+            return
+        end
+        if not res.ok then
+            warn_res("git restore failed", res)
+        end
+        local sel = capture_selection()
+        update_content(nil)
+        retain_selection(sel)
+    end
     keymap("<tab>", next_section, {})
     keymap("<s-tab>", prev_section, {})
     keymap("<esc>", quit, {})
@@ -463,6 +494,7 @@ local function gitstatus(selection)
     keymap("F", terminal, { "git fetch", function() update_content() end })
     keymap("p", terminal, { "git pull", function() update_content() end })
     keymap("P", gitpush, {})
+    keymap("d", restore, {})
 end
 
 vim.api.nvim_create_autocmd("User", {
