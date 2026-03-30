@@ -520,6 +520,8 @@ function StatusColumn2()
     return "%#Removed#▎ "
 end
 
+local diff_wrap = false
+
 function gitdiff(file, on_close, staged)
     local area = staged and 1 or 2
     local diff = Diff:new({}, false)
@@ -528,6 +530,7 @@ function gitdiff(file, on_close, staged)
     local pbuf, pwin = setup_preview()
     vim.api.nvim_set_option_value("signcolumn", "auto", { scope = "local", win = pwin })
     vim.api.nvim_set_option_value("cursorline", false, { scope = "local", win = pwin })
+    vim.api.nvim_set_option_value("wrap", diff_wrap, { scope = "local", win = pwin })
     vim.bo[pbuf].filetype = "diff"
 
     local function set_filemark(f)
@@ -748,6 +751,12 @@ function gitdiff(file, on_close, staged)
     keymap("<tab>", toggle_area, {})
     keymap("<space>", apply, {})
     keymap("d", apply, { true })
+    keymap('<a-w>', function()
+        if pwin then
+            diff_wrap = not diff_wrap
+            vim.wo[pwin].wrap = diff_wrap
+        end
+    end)
     update_area()
     move(1)
 end
