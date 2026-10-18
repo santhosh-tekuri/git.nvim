@@ -79,6 +79,30 @@ local function check_modified_bufs()
     end
 end
 
+local function open_help(lines)
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.bo[buf].buftype = "nofile"
+    vim.bo[buf].modifiable = false
+    vim.bo[buf].readonly = true
+
+    local width = math.min(vim.o.columns, 90)
+    local height = math.min(vim.o.lines, 20, #lines)
+    local win = vim.api.nvim_open_win(buf, true, {
+        relative = "editor",
+        width = width,
+        height = height,
+        row = (vim.o.lines - height) / 2,
+        col = (vim.o.columns - width) / 2,
+        style = "minimal",
+    })
+    vim.keymap.set("n", "q", function()
+        if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+        end
+    end, { buffer = buf, silent = true })
+end
+
 local function terminal(cmd, on_close)
     local buf = vim.api.nvim_create_buf(false, true)
     local win = vim.api.nvim_open_win(buf, true, {
@@ -495,6 +519,26 @@ local function gitstatus(selection)
     keymap("p", terminal, { "git pull", function() update_content() end })
     keymap("P", gitpush, {})
     keymap("d", restore, {})
+    keymap("?", open_help, { {
+        "      q    quit",
+        "  <tab>    next section",
+        "<s-tab>    prev section",
+        "      o    open selected file",
+        "      O    open all files",
+        "",
+        "<space>    stage/unstage selected file",
+        "      d    restore selected file",
+        "",
+        "     cc    commit",
+        "     ca    commit --amend",
+        "     ff    commit --fixup=<commit>",
+        "     fa    commit --fixup=ament:<commit>",
+        "     fr    commit --fixup=reword:<commit>",
+        "",
+        "      F    fetch",
+        "      p    pull",
+        "      P    push",
+    } })
 end
 
 vim.api.nvim_create_autocmd("User", {
@@ -757,6 +801,19 @@ function gitdiff(file, on_close, staged)
             vim.wo[pwin].wrap = diff_wrap
         end
     end)
+    keymap("?", open_help, { {
+        "      q    quit",
+        "  <tab>    toggle staged/unstaged",
+        "      v    toggle selection mode",
+        "      J    next file",
+        "      K    prev file",
+        "     gg    first file",
+        "      G    last file",
+        "  <a-w>    toggle line wrap",
+        "",
+        "<space>    stage/unstage selection",
+        "      d    discard selection",
+    } })
     update_area()
     move(1)
 end
