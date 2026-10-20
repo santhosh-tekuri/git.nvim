@@ -308,17 +308,7 @@ local function gitstatus(selection)
                 local hl_group = line:sub(1, 1) == "-" and "Removed" or "Added"
                 vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                     end_row = i - 1,
-                    end_col = 2,
-                    hl_group = hl_group,
-                })
-                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 2, {
-                    end_row = i - 1,
                     end_col = line:find(" ", 3, true),
-                    hl_group = "Comment",
-                })
-                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, line:find(" ", 3, true), {
-                    end_row = i - 1,
-                    end_col = #line,
                     hl_group = hl_group,
                 })
             end
