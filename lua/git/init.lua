@@ -304,11 +304,22 @@ local function gitstatus(selection)
                     end_col = 1,
                     hl_group = "Comment",
                 })
-            elseif typ == "Ahead" or typ == "Behind" then
+            elseif typ == "Upstream" then
+                local hl_group = line:sub(1, 1) == "-" and "Removed" or "Added"
                 vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                     end_row = i - 1,
-                    end_col = line:find(" ", 1, true),
+                    end_col = 2,
+                    hl_group = hl_group,
+                })
+                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 2, {
+                    end_row = i - 1,
+                    end_col = line:find(" ", 3, true),
                     hl_group = "Comment",
+                })
+                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, line:find(" ", 3, true), {
+                    end_row = i - 1,
+                    end_col = #line,
+                    hl_group = hl_group,
                 })
             end
         end
@@ -451,14 +462,14 @@ local function gitstatus(selection)
     local function gitpush()
         local cmd = "git push"
         local line = vim.api.nvim_win_get_cursor(pwin)[1]
-        if status.types[line] == "Ahead" then
+        if status.types[line] == "Upstream" then
             line = status.lines[line]
-            local sp = line:find(" ", 1, true)
-            local commit = line:sub(1, sp - 1)
+            local sp = line:find(" ", 3, true)
+            local sha = line:sub(3, sp - 1)
             local slash = status.upstream:find("/", 1, true)
             local remote = status.upstream:sub(1, slash - 1)
             local branch = status.upstream:sub(slash + 1)
-            cmd = ("git push %s %s:%s"):format(remote, commit, branch)
+            cmd = ("git push %s %s:%s"):format(remote, sha, branch)
         end
         terminal(cmd, function()
             update_content()

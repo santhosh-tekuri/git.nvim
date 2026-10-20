@@ -47,18 +47,22 @@ function M:new()
 
     local upstream = cli.upstream(branch)
     if upstream then
-        local res = cli.system({ "git", "--no-pager", "log", "--pretty=format:%h %s", upstream .. "..HEAD" })
+        local res = cli.system({
+            "git", "--no-pager", "log", "--left-right",
+            "--pretty=format:%m %h %s", "HEAD..." .. upstream
+        })
         if res.ok then
-            vim.list_extend(lines, res.stdout)
-            while #types < #lines do
-                table.insert(types, "Ahead")
+            for _, line in ipairs(res.stdout) do
+                if line:sub(1, 1) == ">" then
+                    table.insert(lines, "-" .. line:sub(2))
+                    table.insert(types, "Upstream")
+                end
             end
-        end
-        res = cli.system({ "git", "--no-pager", "log", "--pretty=format:%h %s", "HEAD.." .. upstream })
-        if res.ok then
-            vim.list_extend(lines, res.stdout)
-            while #types < #lines do
-                table.insert(types, "Behind")
+            for _, line in ipairs(res.stdout) do
+                if line:sub(1, 1) == "<" then
+                    table.insert(lines, "+" .. line:sub(2))
+                    table.insert(types, "Upstream")
+                end
             end
         end
     end
