@@ -192,4 +192,16 @@ function M.commit(flags)
     end)
 end
 
+function M.upstream(branch)
+    local res = M.system({ "git", "rev-parse", "--abbrev-ref", branch .. "@{upstream}" })
+    if res.ok then
+        return res.stdout[1]
+    end
+    res = M.system({ "git", "rev-parse", "--abbrev-ref", "origin/" .. branch })
+    if res.ok then
+        return "origin/" .. branch
+    end
+    return nil
+end
+
 return M
