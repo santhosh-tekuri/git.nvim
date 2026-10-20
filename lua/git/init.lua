@@ -516,7 +516,9 @@ local function gitstatus(selection)
     keymap("fa", fixup, { "--fixup=amend:" })
     keymap("fr", fixup, { "--fixup=reword:" })
     keymap("F", terminal, { "git fetch", function() update_content() end })
-    keymap("p", terminal, { "git pull", function() update_content() end })
+    keymap("pp", terminal, { "git pull", function() update_content() end })
+    keymap("pf", terminal, { "git pull --ff-only", function() update_content() end })
+    keymap("pr", terminal, { "git pull --rebase", function() update_content() end })
     keymap("P", gitpush, {})
     keymap("d", restore, {})
     keymap("?", open_help, { {
@@ -529,14 +531,16 @@ local function gitstatus(selection)
         "<space>    stage/unstage selected file",
         "      d    restore selected file",
         "",
-        "     cc    commit",
+        "     cc    commit -v",
         "     ca    commit --amend",
         "     ff    commit --fixup=<commit>",
         "     fa    commit --fixup=ament:<commit>",
         "     fr    commit --fixup=reword:<commit>",
         "",
         "      F    fetch",
-        "      p    pull",
+        "     pp    pull",
+        "     pf    pull --ff-only",
+        "     pr    pull --rebase",
         "      P    push",
     } })
 end
