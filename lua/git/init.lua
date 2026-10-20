@@ -454,12 +454,11 @@ local function gitstatus(selection)
         if status.types[line] == "Ahead" then
             line = status.lines[line]
             local sp = line:find(" ", 1, true)
-            local branch = status.branch
-            local dot = branch:find("...", 1, true)
-            if dot then
-                branch = branch:sub(1, dot - 1)
-            end
-            cmd = ("git push origin %s:%s"):format(line:sub(1, sp - 1), branch)
+            local commit = line:sub(1, sp - 1)
+            local slash = status.upstream:find("/", 1, true)
+            local remote = status.upstream:sub(1, slash - 1)
+            local branch = status.upstream:sub(slash + 1)
+            cmd = ("git push %s %s:%s"):format(remote, commit, branch)
         end
         terminal(cmd, function()
             update_content()

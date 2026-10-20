@@ -65,6 +65,7 @@ function M:new()
 
     local inst = {
         branch = branch,
+        upstream = upstream,
         lines = lines,
         types = types,
     }
