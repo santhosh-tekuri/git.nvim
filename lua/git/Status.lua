@@ -6,6 +6,10 @@ M.__index = M
 function M:new()
     local status = assert(cli.status())
     local branch = status[1]:sub(4)
+    local start = branch:find("...", 1, true)
+    if start then
+        branch = branch:sub(1, start - 1)
+    end
     table.remove(status, 1)
     local staged, unstaged, unmerged, untracked = {}, {}, {}, {}
     for _, line in ipairs(status) do
