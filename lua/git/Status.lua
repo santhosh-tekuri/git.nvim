@@ -49,18 +49,18 @@ function M:new()
     if upstream then
         local res = cli.system({
             "git", "--no-pager", "log", "--left-right",
-            "--pretty=format:%m %h %s", "HEAD..." .. upstream
+            "--pretty=format:%m %h %s", upstream .. "...HEAD"
         })
         if res.ok then
             for _, line in ipairs(res.stdout) do
-                if line:sub(1, 1) == ">" then
-                    table.insert(lines, "-" .. line:sub(2))
+                if line:sub(1, 1) == "<" then
+                    table.insert(lines, line)
                     table.insert(types, "Upstream")
                 end
             end
             for _, line in ipairs(res.stdout) do
-                if line:sub(1, 1) == "<" then
-                    table.insert(lines, "+" .. line:sub(2))
+                if line:sub(1, 1) == ">" then
+                    table.insert(lines, line)
                     table.insert(types, "Upstream")
                 end
             end

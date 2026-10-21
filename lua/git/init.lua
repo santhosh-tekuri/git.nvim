@@ -254,20 +254,25 @@ local function gitstatus(selection)
         vim.api.nvim_buf_clear_namespace(pbuf, ns, 0, -1)
         vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, status.lines)
 
-        -- highlight status chars
+        -- add section headers
         for i = 1, #status.lines do
             if i == 1 or status.types[i] ~= status.types[i - 1] then
                 local virtlines = {}
                 if i ~= 1 then
                     table.insert(virtlines, {})
                 end
-                table.insert(virtlines, { { status.types[i] .. ":" } })
+                local title = status.types[i] .. ":"
+                if title == "Upstream:" then
+                    title = "@{upstream}..." .. status.branch
+                end
+                table.insert(virtlines, { { title } })
                 vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                     virt_lines = virtlines,
                     virt_lines_above = true,
                 })
             end
         end
+        -- add highlight colors
         for i, line in ipairs(status.lines) do
             vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                 virt_text = { { "  " } },
@@ -454,12 +459,14 @@ local function gitstatus(selection)
         local line = vim.api.nvim_win_get_cursor(pwin)[1]
         if status.types[line] == "Upstream" then
             line = status.lines[line]
-            local sp = line:find(" ", 3, true)
-            local sha = line:sub(3, sp - 1)
-            local slash = status.upstream:find("/", 1, true)
-            local remote = status.upstream:sub(1, slash - 1)
-            local branch = status.upstream:sub(slash + 1)
-            cmd = ("git push %s %s:%s"):format(remote, sha, branch)
+            if line:sub(1, 1) == ">" then
+                local sp = line:find(" ", 3, true)
+                local sha = line:sub(3, sp - 1)
+                local slash = status.upstream:find("/", 1, true)
+                local remote = status.upstream:sub(1, slash - 1)
+                local branch = status.upstream:sub(slash + 1)
+                cmd = ("git push %s %s:%s"):format(remote, sha, branch)
+            end
         end
         terminal(cmd, function()
             update_content()
