@@ -310,7 +310,7 @@ local function gitstatus(selection)
                     hl_group = "Comment",
                 })
             elseif typ == "Upstream" then
-                local hl_group = line:sub(1, 1) == "-" and "Removed" or "Added"
+                local hl_group = line:sub(1, 1) == "<" and "Removed" or "Added"
                 vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
                     end_row = i - 1,
                     end_col = line:find(" ", 3, true),
