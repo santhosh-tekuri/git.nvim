@@ -192,6 +192,23 @@ function M.commit(flags)
     end)
 end
 
+function M.current_branch()
+    local res = M.system({ "git", "rev-parse", "--abbrev-ref", "HEAD" })
+    if res.ok then
+        if res.stdout[1] == "HEAD" then
+            local file = io.open(M.find_git() .. "/rebase-merge/head-name", "r")
+            if file then
+                local content = file:read("*all")
+                file:close()
+                return content
+            end
+            return nil
+        end
+        return res.stdout[1]
+    end
+    return nil
+end
+
 function M.upstream(branch)
     local res = M.system({ "git", "rev-parse", "--abbrev-ref", branch .. "@{upstream}" })
     if res.ok then
