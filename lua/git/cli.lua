@@ -202,7 +202,7 @@ function M.current_branch()
                 file:close()
                 return content
             end
-            return nil
+            return "HEAD"
         end
         return res.stdout[1]
     end
