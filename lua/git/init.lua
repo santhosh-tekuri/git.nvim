@@ -550,7 +550,7 @@ local function gitstatus(selection)
         "     cc    commit -v",
         "     ca    commit --amend",
         "     ff    commit --fixup=<commit>",
-        "     fa    commit --fixup=ament:<commit>",
+        "     fa    commit --fixup=amend:<commit>",
         "     fr    commit --fixup=reword:<commit>",
         "",
         "      F    fetch",
