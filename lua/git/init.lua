@@ -416,9 +416,7 @@ local function gitstatus(selection)
         if res.code ~= 0 then
             warn(table.concat(res.stderr, '\n'))
         end
-        local sel = capture_selection()
-        update_content(nil)
-        retain_selection(sel)
+        update_content(capture_selection())
     end
     local function commit_to_stash()
         if cli.is_stage_empty() then
@@ -436,9 +434,7 @@ local function gitstatus(selection)
                 if not res.ok then
                     warn_res("git stash failed", res)
                 end
-                local sel = capture_selection()
-                update_content(nil)
-                retain_selection(sel)
+                update_content(capture_selection())
             end
         end)
     end
@@ -530,9 +526,7 @@ local function gitstatus(selection)
         if not res.ok then
             warn_res("git restore failed", res)
         end
-        local sel = capture_selection()
-        update_content(nil)
-        retain_selection(sel)
+        update_content(capture_selection())
     end
     keymap("<tab>", next_section, {})
     keymap("<s-tab>", prev_section, {})
