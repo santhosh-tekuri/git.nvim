@@ -63,6 +63,14 @@ function M:new()
         end
     end
 
+    local res = cli.system({ "git", "--no-pager", "stash", "list", "--format=%gd: %s" })
+    if res.ok then
+        vim.list_extend(lines, res.stdout)
+        while #types < #lines do
+            table.insert(types, "Stash")
+        end
+    end
+
     local inst = {
         branch = branch,
         upstream = upstream,

@@ -316,6 +316,15 @@ local function gitstatus(selection)
                     end_col = line:find(" ", 3, true),
                     hl_group = hl_group,
                 })
+            elseif typ == "Stash" then
+                local colon = line:find(":", 1, true)
+                local branch = line:match("^stash@{%d+}: On ([^:]+):")
+                local hl_group = branch == status.branch and "Added" or "Comment"
+                vim.api.nvim_buf_set_extmark(pbuf, ns, i - 1, 0, {
+                    end_row = i - 1,
+                    end_col = colon,
+                    hl_group = hl_group,
+                })
             end
         end
 
