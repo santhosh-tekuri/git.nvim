@@ -420,6 +420,28 @@ local function gitstatus(selection)
         update_content(nil)
         retain_selection(sel)
     end
+    local function commit_to_stash()
+        if cli.is_stage_empty() then
+            warn("Nothing staged")
+            return
+        end
+        vim.ui.input({ prompt = 'Stash Message: ' }, function(msg)
+            if msg then
+                local res
+                if msg == "" then
+                    res = cli.system({ "git", "stash", "push", "--staged" })
+                else
+                    res = cli.system({ "git", "stash", "push", "--staged", "-m", msg })
+                end
+                if not res.ok then
+                    warn_res("git stash failed", res)
+                end
+                local sel = capture_selection()
+                update_content(nil)
+                retain_selection(sel)
+            end
+        end)
+    end
     local function fixup(flag)
         pick_commit(function(hash)
             if hash then
@@ -528,6 +550,7 @@ local function gitstatus(selection)
     keymap("<space>", toggle_status, {})
     keymap("cc", commit, { {} })
     keymap("ca", commit, { { "--amend" } })
+    keymap("cs", commit_to_stash, {})
     keymap("ff", fixup, { "--fixup=" })
     keymap("fa", fixup, { "--fixup=amend:" })
     keymap("fr", fixup, { "--fixup=reword:" })
@@ -549,6 +572,7 @@ local function gitstatus(selection)
         "",
         "     cc    commit -v",
         "     ca    commit --amend",
+        "     cs    stash --staged",
         "     ff    commit --fixup=<commit>",
         "     fa    commit --fixup=amend:<commit>",
         "     fr    commit --fixup=reword:<commit>",
