@@ -41,29 +41,34 @@ function M:new()
         table.insert(types, "Untracked")
     end
 
+    local cmd = {
+        "git", "--no-pager", "log", "HEAD",
+        "--pretty=format:%m %h %s", "--not", "--remotes"
+    }
     local upstream = cli.upstream(branch)
     if upstream then
-        local res = cli.system({
+        cmd = {
             "git", "--no-pager", "log", "--left-right",
-            "--pretty=format:%m %h %s", upstream .. "...HEAD"
-        })
-        if res.ok then
-            for _, line in ipairs(res.stdout) do
-                if line:sub(1, 1) == "<" then
-                    table.insert(lines, line)
-                    table.insert(types, "Upstream")
-                end
+            "--pretty=format:%m %h %s", "--", upstream .. "...HEAD"
+        }
+    end
+    local res = cli.system(cmd)
+    if res.ok then
+        for _, line in ipairs(res.stdout) do
+            if line:sub(1, 1) == "<" then
+                table.insert(lines, line)
+                table.insert(types, "Upstream")
             end
-            for _, line in ipairs(res.stdout) do
-                if line:sub(1, 1) == ">" then
-                    table.insert(lines, line)
-                    table.insert(types, "Upstream")
-                end
+        end
+        for _, line in ipairs(res.stdout) do
+            if line:sub(1, 1) == ">" then
+                table.insert(lines, line)
+                table.insert(types, "Upstream")
             end
         end
     end
 
-    local res = cli.system({ "git", "--no-pager", "stash", "list", "--format=%gd: %s" })
+    res = cli.system({ "git", "--no-pager", "stash", "list", "--format=%gd: %s" })
     if res.ok then
         vim.list_extend(lines, res.stdout)
         while #types < #lines do
