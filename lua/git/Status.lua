@@ -49,7 +49,7 @@ function M:new()
     if upstream then
         cmd = {
             "git", "--no-pager", "log", "--left-right",
-            "--pretty=format:%m %h %s", "--", upstream .. "...HEAD"
+            "--pretty=format:%m %h %s", upstream .. "...HEAD"
         }
     end
     local res = cli.system(cmd)
