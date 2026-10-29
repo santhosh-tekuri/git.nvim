@@ -150,7 +150,6 @@ local function edit_commitmsg(data, on_close)
         col = 0,
         width = vim.o.columns,
         height = vim.o.lines - 1,
-        focusable = false,
         zindex = 50,
     })
     vim.api.nvim_set_option_value("winhighlight", "Normal:Normal,FloatBorder:Normal", { scope = "local", win = win })
