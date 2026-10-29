@@ -583,8 +583,9 @@ vim.api.nvim_create_autocmd("User", {
     group = vim.api.nvim_create_augroup("GitCommit", {}),
     pattern = "GitCommit",
     callback = function(args)
-        edit_commitmsg(args.data, gitstatus_close and gitstatus or nil)
+        local on_close = gitstatus_close and gitstatus or nil
         _ = gitstatus_close and gitstatus_close()
+        edit_commitmsg(args.data, on_close)
     end,
 })
 
