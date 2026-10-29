@@ -411,6 +411,8 @@ local function gitstatus(selection)
             res = cli.stage_file(f)
         elseif typ == "UnMerged" or typ == "Untracked" then
             res = cli.toggle_status(f)
+        else
+            return
         end
         if res.code ~= 0 then
             warn(table.concat(res.stderr, '\n'))
