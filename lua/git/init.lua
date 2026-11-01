@@ -386,7 +386,9 @@ local function gitstatus(selection)
     vim.api.nvim_create_autocmd('WinEnter', {
         buffer = pbuf,
         callback = function()
-            vim.api.nvim_set_current_win(qwin)
+            if vim.api.nvim_win_is_valid(qwin) then
+                vim.api.nvim_set_current_win(qwin)
+            end
         end
     })
     vim.api.nvim_create_autocmd('WinClosed', {
